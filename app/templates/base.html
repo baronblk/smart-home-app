@@ -57,10 +57,13 @@
                 </a>
             </nav>
 
-            <!-- User info -->
-            <div class="px-4 py-4 border-t border-slate-700 text-sm text-slate-400">
-                <a href="/profile" class="hover:text-white transition-colors">
-                    Profil &amp; Einstellungen
+            <!-- Admin & User links -->
+            <div class="px-3 py-4 border-t border-slate-700 space-y-1">
+                <a href="/settings" class="nav-link {% if '/settings' in request.url.path %}nav-link-active{% endif %}">
+                    Einstellungen
+                </a>
+                <a href="/profile" class="nav-link {% if '/profile' in request.url.path %}nav-link-active{% endif %}">
+                    Profil
                 </a>
             </div>
         </aside>

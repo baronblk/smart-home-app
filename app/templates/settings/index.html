@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Einstellungen — smart-home-app{% endblock %}
+{% block page_title %}Einstellungen{% endblock %}
+
+{% block content %}
+
+<div class="max-w-3xl space-y-6" x-data="settingsPage()">
+
+    <!-- FRITZ!Box Provider Configuration -->
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold text-gray-700">FRITZ!Box Verbindung</h2>
+            <span x-show="provider.fritz_mock_mode"
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                Mock-Modus
+            </span>
+            <span x-show="!provider.fritz_mock_mode"
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                Live-Modus
+            </span>
+        </div>
+
+        <div class="space-y-3 text-sm">
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-gray-500">Modus</span>
+                <span class="font-medium" x-text="provider.fritz_mock_mode ? 'Mock (Simulation)' : 'Live (FRITZ!Box)'"></span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-gray-500">Host</span>
+                <span class="font-mono text-gray-800" x-text="provider.fritz_host || '—'"></span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-gray-500">Benutzername</span>
+                <span class="font-mono text-gray-800" x-text="provider.fritz_username || '—'"></span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-gray-500">Passwort</span>
+                <span class="text-gray-800" x-text="provider.fritz_password_set ? '••••••••' : 'Nicht gesetzt'"></span>
+            </div>
+            <div class="flex justify-between items-center py-2">
+                <span class="text-gray-500">SSL-Verifizierung</span>
+                <span class="font-medium" x-text="provider.fritz_ssl_verify ? 'Aktiv' : 'Deaktiviert'"></span>
+            </div>
+        </div>
+
+        <!-- Connection test -->
+        <div class="mt-5 pt-4 border-t border-gray-200">
+            <button @click="testConnection()"
+                    :disabled="testing"
+                    class="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium px-4 py-2 rounded-lg inline-flex items-center gap-2">
+                <svg x-show="testing" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+                <span x-text="testing ? 'Teste...' : 'Verbindung testen'"></span>
+            </button>
+
+            <!-- Test result -->
+            <div x-show="testResult" x-transition class="mt-3">
+                <div :class="testResult?.success
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : 'bg-red-50 border-red-200 text-red-700'"
+                     class="px-4 py-3 rounded-lg border text-sm">
+                    <span x-text="testResult?.message"></span>
+                    <template x-if="testResult?.device_count !== null && testResult?.device_count !== undefined">
+                        <span class="font-semibold" x-text="' (' + testResult.device_count + ' Geräte)'"></span>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration hint -->
+        <div class="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-500 leading-relaxed">
+            <strong>Hinweis:</strong> Die FRITZ!Box-Verbindung wird über Umgebungsvariablen konfiguriert.
+            Passe die <code class="bg-gray-200 px-1 rounded">.env</code>-Datei an und starte den Container neu:
+            <div class="mt-2 font-mono bg-gray-100 p-2 rounded text-gray-600 select-all">
+                FRITZ_MOCK_MODE=false<br>
+                FRITZ_HOST=192.168.178.1<br>
+                FRITZ_USERNAME=admin<br>
+                FRITZ_PASSWORD=dein_passwort
+            </div>
+        </div>
+    </div>
+
+    <!-- System Information -->
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 class="text-base font-semibold text-gray-700 mb-4">Systeminfo</h2>
+        <div class="space-y-3 text-sm">
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-gray-500">Umgebung</span>
+                <span class="font-medium capitalize" x-text="system.environment || '—'"></span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-gray-500">Datenbank</span>
+                <span class="font-mono text-xs text-gray-600 truncate max-w-xs" x-text="system.database_url_masked || '—'"></span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-gray-500">Redis</span>
+                <span class="font-mono text-xs text-gray-600" x-text="system.redis_url || '—'"></span>
+            </div>
+            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                <span class="text-gray-500">Wetter-API</span>
+                <span x-text="system.weather_api_configured ? 'Konfiguriert' : 'Nicht konfiguriert'"
+                      :class="system.weather_api_configured ? 'text-green-600' : 'text-gray-400'"></span>
+            </div>
+            <div class="flex justify-between items-center py-2">
+                <span class="text-gray-500">Wetter-Standort</span>
+                <span class="font-mono text-xs text-gray-600" x-text="system.weather_location || '—'"></span>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function settingsPage() {
+    return {
+        provider: {},
+        system: {},
+        testing: false,
+        testResult: null,
+
+        async init() {
+            const token = localStorage.getItem("access_token") || "";
+            const headers = { Authorization: `Bearer ${token}` };
+
+            const [providerResp, systemResp] = await Promise.all([
+                fetch("/api/v1/settings/provider", { headers }),
+                fetch("/api/v1/settings/system", { headers }),
+            ]);
+
+            if (providerResp.ok) this.provider = await providerResp.json();
+            if (systemResp.ok) this.system = await systemResp.json();
+        },
+
+        async testConnection() {
+            this.testing = true;
+            this.testResult = null;
+            try {
+                const token = localStorage.getItem("access_token") || "";
+                const resp = await fetch("/api/v1/settings/provider/test", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (resp.ok) {
+                    this.testResult = await resp.json();
+                } else {
+                    this.testResult = { success: false, message: "API-Fehler: " + resp.status };
+                }
+            } catch (err) {
+                this.testResult = { success: false, message: "Netzwerkfehler: " + err.message };
+            } finally {
+                this.testing = false;
+            }
+        },
+    };
+}
+</script>
+{% endblock %}

@@ -41,3 +41,8 @@ async def login_page(request: Request) -> HTMLResponse:
 @router.get("/profile", response_class=HTMLResponse)
 async def profile_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("auth/profile.html", {"request": request})
+
+
+@router.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("settings/index.html", {"request": request})

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Admin settings page (`/settings`) showing FRITZ!Box provider configuration,
+  connection test button, and system information
+- API endpoints: `GET /api/v1/settings/provider`, `POST /api/v1/settings/provider/test`,
+  `GET /api/v1/settings/system` (admin-only)
+- Sidebar navigation now includes Einstellungen and Profil links
+
+
 ---
 
 ## [0.1.1] - 2026-03-18
