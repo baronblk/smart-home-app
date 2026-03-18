@@ -28,7 +28,7 @@ def setup_scheduler() -> AsyncIOScheduler:
     Jobs are not added if the scheduler is already running to avoid
     duplicates on hot-reload.
     """
-    from app.scheduler.tasks import evaluate_all_rules, poll_all_devices
+    from app.scheduler.tasks import evaluate_all_rules, poll_all_devices, refresh_weather_cache
 
     if not scheduler.get_job("poll_all_devices"):
         scheduler.add_job(
@@ -53,6 +53,18 @@ def setup_scheduler() -> AsyncIOScheduler:
             coalesce=True,
         )
         logger.info("Registered job: evaluate_all_rules (every 60s)")
+
+    if not scheduler.get_job("refresh_weather_cache"):
+        scheduler.add_job(
+            refresh_weather_cache,
+            trigger=IntervalTrigger(minutes=30),
+            id="refresh_weather_cache",
+            name="Refresh weather cache",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+        logger.info("Registered job: refresh_weather_cache (every 30min)")
 
     return scheduler
 

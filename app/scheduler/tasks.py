@@ -68,6 +68,24 @@ async def evaluate_all_rules() -> None:
         logger.error("evaluate_all_rules failed: %s", exc)
 
 
+async def refresh_weather_cache() -> None:
+    """
+    Force-refresh the weather cache from OpenWeatherMap.
+    Registered: every 30 minutes.
+    """
+    from app.db.session import async_session_factory
+    from app.weather.service import WeatherService
+
+    try:
+        async with async_session_factory() as session:
+            service = WeatherService(session)
+            await service.refresh()
+            await session.commit()
+        logger.debug("refresh_weather_cache: cache updated")
+    except Exception as exc:
+        logger.error("refresh_weather_cache failed: %s", exc)
+
+
 async def _evaluate_rule(rule: object, provider: object) -> bool:
     """
     Evaluate whether an automation rule's conditions are met.
@@ -112,8 +130,28 @@ async def _evaluate_rule(rule: object, provider: object) -> bool:
         return _compare(current_value, operator, threshold)
 
     elif trigger_type == "weather":
-        # Weather evaluation integrated in Phase 8
-        return False
+        property_name = config.get("property")  # e.g. "temperature", "humidity"
+        operator = config.get("operator", "lt")
+        threshold = config.get("value")
+
+        if not property_name or threshold is None:
+            return False
+
+        from app.db.session import async_session_factory
+        from app.weather.service import WeatherService
+
+        async with async_session_factory() as session:
+            weather_service = WeatherService(session)
+            cached = await weather_service.get_current()
+
+        if cached is None:
+            return False
+
+        current_value = getattr(cached, property_name, None)
+        if current_value is None:
+            return False
+
+        return _compare(float(current_value), operator, float(threshold))
 
     return False
 
