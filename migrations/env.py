@@ -18,10 +18,11 @@ from app.models.base import Base  # noqa: F401
 from app.users.models import User  # noqa: F401
 from app.devices.models import Device, DeviceStateSnapshot  # noqa: F401
 
-# Import additional models as they are added in later phases:
-# from app.scheduler.models import Schedule, AutomationRule  # noqa: F401
-# from app.scheduler.models import Schedule, AutomationRule  # noqa: F401
+from app.scheduler.models import AutomationRule, Schedule  # noqa: F401
+
+# Additional models imported as phases progress:
 # from app.audit.models import AuditEvent  # noqa: F401
+# from app.weather.models import WeatherCache  # noqa: F401
 # from app.weather.models import WeatherCache  # noqa: F401
 
 # Alembic Config object, gives access to values in alembic.ini

@@ -23,16 +23,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Application lifespan context.
 
     Startup logic runs before yield; shutdown logic runs after.
-    Add initialisation for new features (scheduler, provider) here
-    in subsequent phases — never at module import time.
     """
     # --- Startup ---
-    # Phase 2+: initialise DB connection pool
-    # Phase 3+: initialise provider singleton
-    # Phase 5+: start APScheduler
+    from app.scheduler.engine import start_scheduler
+    start_scheduler()
+
     yield
+
     # --- Shutdown ---
-    # Phase 5+: shut down APScheduler
+    from app.scheduler.engine import stop_scheduler
+    stop_scheduler()
 
 
 def create_app() -> FastAPI:
