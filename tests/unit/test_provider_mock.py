@@ -3,11 +3,12 @@ Unit tests for MockProvider.
 
 Tests run without any FRITZ!Box hardware or database.
 """
+
 import pytest
 
+from app.exceptions import DeviceCommandError, DeviceNotFoundError
 from app.providers.base import DeviceCapability, DeviceType
 from app.providers.mock.provider import MockProvider
-from app.exceptions import DeviceCommandError, DeviceNotFoundError
 
 
 @pytest.fixture

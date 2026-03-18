@@ -7,9 +7,10 @@ BaseProvider defines the contract that FritzProvider and MockProvider
 implement. All device operations in the application go through this
 interface, never through fritzconnection directly.
 """
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Flag, StrEnum, auto
 
 
@@ -22,9 +23,10 @@ class DeviceType(StrEnum):
 
 class DeviceCapability(Flag):
     """Bitmask of capabilities a device may support."""
-    SWITCH = auto()       # Can be turned on/off
-    THERMOSTAT = auto()   # Has a thermostat (temperature control)
-    DIMMER = auto()       # Supports dimming (brightness control)
+
+    SWITCH = auto()  # Can be turned on/off
+    THERMOSTAT = auto()  # Has a thermostat (temperature control)
+    DIMMER = auto()  # Supports dimming (brightness control)
     POWER_METER = auto()  # Reports current power consumption + energy
 
 
@@ -36,11 +38,12 @@ class DeviceInfo:
     This is a pure data transfer object from the provider to the
     service layer. It is NOT a SQLAlchemy model.
     """
-    ain: str                              # AVM AIN identifier (unique per device)
+
+    ain: str  # AVM AIN identifier (unique per device)
     name: str
     device_type: DeviceType
     capabilities: DeviceCapability
-    is_present: bool                      # False if device is offline
+    is_present: bool  # False if device is offline
     firmware_version: str | None = None
 
 
@@ -51,16 +54,15 @@ class DeviceState:
 
     None values mean the capability is not supported by this device.
     """
+
     ain: str
-    is_on: bool | None = None             # None if no SWITCH capability
-    temperature_celsius: float | None = None   # Current temperature (thermostat)
-    target_temperature: float | None = None    # Set-point temperature
-    power_watts: float | None = None           # Current power draw (POWER_METER)
-    energy_wh: float | None = None             # Total energy consumed (POWER_METER)
-    brightness_level: int | None = None        # 0–255, None if not DIMMER
-    last_updated: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    is_on: bool | None = None  # None if no SWITCH capability
+    temperature_celsius: float | None = None  # Current temperature (thermostat)
+    target_temperature: float | None = None  # Set-point temperature
+    power_watts: float | None = None  # Current power draw (POWER_METER)
+    energy_wh: float | None = None  # Total energy consumed (POWER_METER)
+    brightness_level: int | None = None  # 0-255, None if not DIMMER
+    last_updated: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 class BaseProvider(ABC):
@@ -104,7 +106,7 @@ class BaseProvider(ABC):
         """
         Set the target temperature on a thermostat device.
 
-        Valid range: 8.0–28.0 °C. 0 = off, 32 = boost mode.
+        Valid range: 8.0-28.0 °C. 0 = off, 32 = boost mode.
         Raises DeviceCommandError if the device does not support THERMOSTAT.
         """
         ...

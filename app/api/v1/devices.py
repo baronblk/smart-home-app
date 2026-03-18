@@ -10,7 +10,9 @@ POST /api/v1/devices/{ain}/off     — turn device off
 PUT  /api/v1/devices/{ain}/temperature — set thermostat target temperature
 PUT  /api/v1/devices/{ain}/brightness  — set dimmer brightness level
 """
+
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +23,6 @@ from app.devices.schemas import (
     DeviceRead,
     DeviceStateRead,
     DeviceUpdate,
-    DeviceWithStateRead,
     DiscoveryResult,
     SetBrightnessRequest,
     SetTemperatureRequest,
@@ -45,7 +46,7 @@ async def list_devices(
     include_inactive: bool = False,
     current_user: User = Depends(require_role(Role.VIEWER)),
     service: DeviceService = Depends(_get_service),
-) -> list:
+) -> list[Any]:
     return list(await service.list_devices(include_inactive=include_inactive))
 
 

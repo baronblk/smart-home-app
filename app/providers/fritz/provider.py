@@ -8,6 +8,7 @@ The provider is a singleton: call FritzProvider.get_instance() to
 get or create the shared instance. The instance is initialised lazily
 on first use.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -40,7 +41,7 @@ class FritzProvider(BaseProvider):
         self._device_capabilities: dict[str, object] = {}
 
     @classmethod
-    def get_instance(cls) -> "FritzProvider":
+    def get_instance(cls) -> FritzProvider:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
@@ -57,7 +58,7 @@ class FritzProvider(BaseProvider):
             loop = asyncio.get_event_loop()
             try:
                 # Import fritzconnection here — the ONLY place in the app
-                from fritzconnection.lib.fritzhome import FritzHome  # type: ignore[import]
+                from fritzconnection.lib.fritzhome import FritzHome
 
                 fritz_home = await loop.run_in_executor(
                     None,
@@ -82,7 +83,8 @@ class FritzProvider(BaseProvider):
         try:
             fritz_home = self._fritz_home
             devices_raw = await loop.run_in_executor(
-                None, fritz_home.get_device_list  # type: ignore[union-attr]
+                None,
+                fritz_home.get_device_list,  # type: ignore[union-attr]
             )
             result = []
             for device in devices_raw:
@@ -97,13 +99,13 @@ class FritzProvider(BaseProvider):
         await self._ensure_connected()
         assert self._adapter is not None
         capabilities = self._device_capabilities.get(ain)
-        from app.providers.base import DeviceCapability
         if capabilities is None:
             # Fetch capabilities on demand
             await self.discover_devices()
             capabilities = self._device_capabilities.get(ain)
             if capabilities is None:
                 from app.exceptions import DeviceNotFoundError
+
                 raise DeviceNotFoundError(ain)
         return await self._adapter.get_state(ain, capabilities)  # type: ignore[arg-type]
 

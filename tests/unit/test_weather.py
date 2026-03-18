@@ -4,14 +4,14 @@ Unit tests for the weather domain.
 Tests parse_weather_data() and WeatherService cache logic in isolation.
 No real HTTP requests are made — httpx is patched.
 """
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.weather.client import parse_weather_data
-
 
 # ------------------------------------------------------------------
 # OWM response fixture
@@ -25,9 +25,7 @@ OWM_RESPONSE: dict[str, Any] = {
         "feels_like": 10.1,
         "humidity": 72,
     },
-    "weather": [
-        {"main": "Clouds", "description": "überwiegend bewölkt", "icon": "04d"}
-    ],
+    "weather": [{"main": "Clouds", "description": "überwiegend bewölkt", "icon": "04d"}],
     "wind": {"speed": 5.3, "deg": 220},
     "visibility": 10000,
     "clouds": {"all": 75},
@@ -81,7 +79,7 @@ async def test_get_current_returns_cached_when_valid() -> None:
     """If the cache is not expired, no HTTP fetch should occur."""
     from app.weather.service import WeatherService
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     mock_cache = MagicMock()
     mock_cache.location_key = "52.52,13.405"
     mock_cache.temperature_celsius = 12.4
@@ -114,7 +112,7 @@ async def test_get_current_fetches_when_cache_expired() -> None:
     """When the cache is expired, a fresh fetch should be performed."""
     from app.weather.service import WeatherService
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     mock_cache = MagicMock()
     mock_cache.expires_at = now - timedelta(minutes=5)  # expired
 
@@ -154,8 +152,11 @@ async def test_get_current_fetches_when_cache_expired() -> None:
         mock_session.refresh.side_effect = lambda obj: None
 
         # Patch model_validate to use the updated_cache attributes
-        with patch("app.weather.schemas.WeatherRead.model_validate", return_value=MagicMock(condition="Clouds")):
-            result = await service.get_current()
+        with patch(
+            "app.weather.schemas.WeatherRead.model_validate",
+            return_value=MagicMock(condition="Clouds"),
+        ):
+            await service.get_current()
 
     mock_fetch.assert_called_once()
 
@@ -187,7 +188,7 @@ def test_is_valid_returns_true_for_fresh_cache() -> None:
     from app.weather.service import WeatherService
 
     cache = MagicMock()
-    cache.expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    cache.expires_at = datetime.now(UTC) + timedelta(minutes=10)
     assert WeatherService._is_valid(cache) is True
 
 
@@ -195,5 +196,5 @@ def test_is_valid_returns_false_for_expired_cache() -> None:
     from app.weather.service import WeatherService
 
     cache = MagicMock()
-    cache.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    cache.expires_at = datetime.now(UTC) - timedelta(seconds=1)
     assert WeatherService._is_valid(cache) is False

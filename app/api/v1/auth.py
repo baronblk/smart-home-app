@@ -5,6 +5,7 @@ POST /api/v1/auth/login   — issue access + refresh tokens
 POST /api/v1/auth/refresh — issue new access token via refresh cookie
 POST /api/v1/auth/logout  — clear refresh token cookie
 """
+
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -61,7 +62,6 @@ async def refresh(
     refresh_token: str | None = None,
 ) -> RefreshResponse:
     """Issue a new access token using the refresh token cookie."""
-    from fastapi import Request
 
     if refresh_token is None:
         raise UnauthorizedError("Refresh token missing.")
@@ -70,7 +70,9 @@ async def refresh(
     if payload is None:
         raise UnauthorizedError("Invalid or expired refresh token.")
 
-    user_id = payload.get("sub")
+    user_id: str | None = payload.get("sub")
+    if user_id is None:
+        raise UnauthorizedError("Token missing subject.")
     service = UserService(session)
     user = await service.get_by_id(user_id)
 

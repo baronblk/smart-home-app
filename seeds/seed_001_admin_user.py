@@ -3,6 +3,7 @@ Seed 001 — Create default admin user.
 
 Idempotent: skips creation if an admin already exists.
 """
+
 import asyncio
 import sys
 from pathlib import Path
@@ -21,9 +22,7 @@ from app.users.models import User
 async def seed() -> None:
     async with async_session_factory() as session:
         # Check if admin already exists
-        result = await session.execute(
-            select(User).where(User.role == Role.ADMIN).limit(1)
-        )
+        result = await session.execute(select(User).where(User.role == Role.ADMIN).limit(1))
         if result.scalar_one_or_none() is not None:
             print("  [skip] admin user already exists")
             return

@@ -9,6 +9,7 @@ Background jobs registered here:
   - evaluate_all_rules: every 60 seconds
   - refresh_weather_cache: every 30 minutes (added in Phase 8)
 """
+
 import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler

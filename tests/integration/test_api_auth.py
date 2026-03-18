@@ -4,6 +4,7 @@ Integration tests for authentication API endpoints.
 Uses an in-memory SQLite test database via the MockProvider.
 Full test DB setup is completed in Phase 2 conftest expansion.
 """
+
 import pytest
 from httpx import AsyncClient
 

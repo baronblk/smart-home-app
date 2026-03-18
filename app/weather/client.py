@@ -4,6 +4,7 @@ OpenWeatherMap HTTP client.
 Uses httpx for async HTTP requests. The free tier allows 1,000 calls/day —
 the 30-minute cache in WeatherService ensures we stay well within limits.
 """
+
 import logging
 from typing import Any
 
@@ -24,7 +25,7 @@ async def fetch_current_weather(lat: float, lon: float) -> dict[str, Any]:
     Raises httpx.HTTPStatusError on non-2xx responses.
     Raises httpx.RequestError on network failures.
     """
-    params = {
+    params: dict[str, str | float] = {
         "lat": lat,
         "lon": lon,
         "appid": settings.openweathermap_api_key,

@@ -5,6 +5,7 @@ Uses SQLAlchemy's async engine with asyncpg as the driver.
 The session factory is created once at module import time and
 reused for the lifetime of the application.
 """
+
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,

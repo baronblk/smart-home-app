@@ -3,6 +3,7 @@ Weather endpoints.
 
 GET /api/v1/weather/current — return cached current weather
 """
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 

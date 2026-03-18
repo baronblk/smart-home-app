@@ -4,7 +4,6 @@ Unit tests for authentication logic.
 Tests JWT creation/decoding and password hashing in isolation.
 No database access required.
 """
-import pytest
 
 from app.auth.jwt import (
     TOKEN_TYPE_ACCESS,
@@ -16,7 +15,6 @@ from app.auth.jwt import (
 )
 from app.auth.password import hash_password, verify_password
 from app.auth.rbac import Role, has_role
-
 
 # ------------------------------------------------------------------
 # Password tests

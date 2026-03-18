@@ -1,6 +1,7 @@
 """
 Pydantic schemas for authentication API endpoints.
 """
+
 from pydantic import BaseModel, EmailStr
 
 

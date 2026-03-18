@@ -56,6 +56,22 @@ plugins = ["pydantic.mypy"]
 module = ["fritzconnection.*", "apscheduler.*", "passlib.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = [
+    "app.users.repository",
+    "app.devices.repository",
+    "app.scheduler.repository",
+    "app.audit.repository",
+    "app.weather.service",
+    "app.auth.password",
+    "app.auth.jwt",
+]
+warn_return_any = false
+
+[[tool.mypy.overrides]]
+module = ["app.models.base"]
+disallow_subclassing_any = false
+
 # ============================================================
 # pytest
 # ============================================================

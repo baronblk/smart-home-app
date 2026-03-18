@@ -1,6 +1,7 @@
 """
 Pydantic schemas for the Device domain API.
 """
+
 import uuid
 from datetime import datetime
 
@@ -51,7 +52,7 @@ class SetSwitchRequest(BaseModel):
 
 
 class SetTemperatureRequest(BaseModel):
-    celsius: float = Field(..., ge=8.0, le=28.0, description="Target temperature (8–28°C)")
+    celsius: float = Field(..., ge=8.0, le=28.0, description="Target temperature (8-28°C)")
 
 
 class SetBrightnessRequest(BaseModel):

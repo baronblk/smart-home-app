@@ -1,8 +1,9 @@
 """
 Scheduler repository — database queries for Schedule and AutomationRule.
 """
+
 import uuid
-from typing import Sequence
+from collections.abc import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,9 +16,7 @@ class ScheduleRepository:
         self._session = session
 
     async def get_by_id(self, schedule_id: uuid.UUID) -> Schedule | None:
-        result = await self._session.execute(
-            select(Schedule).where(Schedule.id == schedule_id)
-        )
+        result = await self._session.execute(select(Schedule).where(Schedule.id == schedule_id))
         return result.scalar_one_or_none()
 
     async def get_all(self, enabled_only: bool = False) -> Sequence[Schedule]:

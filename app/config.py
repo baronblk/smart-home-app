@@ -5,6 +5,7 @@ All settings are read from environment variables (or .env file).
 This is the single source of truth for configuration — never import
 settings from anywhere else.
 """
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

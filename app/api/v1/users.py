@@ -9,6 +9,7 @@ POST /api/v1/users        — create user (admin)
 PUT  /api/v1/users/{id}   — update user role (admin)
 DELETE /api/v1/users/{id} — delete user (admin)
 """
+
 import uuid
 
 from fastapi import APIRouter, Depends

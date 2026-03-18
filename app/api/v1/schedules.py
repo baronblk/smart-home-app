@@ -1,7 +1,9 @@
 """
 Schedule management endpoints.
 """
+
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +25,7 @@ def _get_service(session: AsyncSession = Depends(get_db)) -> SchedulerService:
 async def list_schedules(
     current_user: User = Depends(require_role(Role.VIEWER)),
     service: SchedulerService = Depends(_get_service),
-) -> list:
+) -> list[Any]:
     return list(await service.list_schedules())
 
 

@@ -6,6 +6,7 @@ Usage:
 
 Seeds are idempotent (safe to run multiple times).
 """
+
 import asyncio
 import sys
 from pathlib import Path
@@ -18,6 +19,7 @@ async def run_all() -> None:
     print("==> Running seed scripts...")
 
     from seeds.seed_001_admin_user import seed as seed_001
+
     await seed_001()
 
     print("==> All seeds complete.")

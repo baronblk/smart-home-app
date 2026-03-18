@@ -4,6 +4,7 @@ into the provider's DeviceInfo data transfer objects.
 
 This module is the only place that imports fritzconnection types.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -58,9 +59,7 @@ def _parse_capabilities(device: object) -> DeviceCapability:
     return capabilities
 
 
-def _infer_device_type(
-    capabilities: DeviceCapability, device: object
-) -> DeviceType:
+def _infer_device_type(capabilities: DeviceCapability, device: object) -> DeviceType:
     """Infer the logical device type from capabilities."""
     if DeviceCapability.THERMOSTAT in capabilities:
         return DeviceType.THERMOSTAT

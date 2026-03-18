@@ -5,12 +5,12 @@ The 'lifespan' context manager is the single place where startup
 and shutdown side-effects are registered. Each feature phase adds
 its own startup/shutdown logic here (DB pool, scheduler, provider).
 """
+
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
 from app.api.router import api_router
 from app.config import settings
@@ -26,12 +26,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     # --- Startup ---
     from app.scheduler.engine import start_scheduler
+
     start_scheduler()
 
     yield
 
     # --- Shutdown ---
     from app.scheduler.engine import stop_scheduler
+
     stop_scheduler()
 
 

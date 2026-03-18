@@ -4,6 +4,7 @@ Device SQLAlchemy models.
 Device: persists discovered devices with their metadata.
 DeviceStateSnapshot: time-series cache of device states (used by dashboard + history).
 """
+
 import uuid
 from datetime import datetime
 
@@ -24,6 +25,7 @@ class Device(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     Real-time state is NOT stored here — it is fetched from the provider
     on demand (or from the DeviceStateSnapshot cache).
     """
+
     __tablename__ = "devices"
 
     ain: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
@@ -31,7 +33,7 @@ class Device(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     device_type: Mapped[str] = mapped_column(String(32), nullable=False)
 
     # Stored as JSONB list of capability strings, e.g. ["SWITCH", "POWER_METER"]
-    capabilities: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    capabilities: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
 
     # User-defined label for location/room
     location: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
@@ -59,11 +61,10 @@ class DeviceStateSnapshot(Base, UUIDPrimaryKeyMixin):
     Used for: dashboard display (latest), and history charts.
     NOT used for real-time device control.
     """
+
     __tablename__ = "device_state_snapshots"
 
-    device_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True
-    )
+    device_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     ain: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True

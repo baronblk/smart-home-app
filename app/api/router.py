@@ -4,6 +4,7 @@ Top-level API router.
 All versioned sub-routers are registered here. Import and
 include this router in app/main.py.
 """
+
 from fastapi import APIRouter
 
 from app.api.v1 import router as v1_router

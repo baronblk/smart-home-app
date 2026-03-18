@@ -1,11 +1,13 @@
 """
 Unit tests for DeviceService (using MockProvider, no database).
 """
-import pytest
+
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from app.devices.service import DeviceService, _capabilities_to_list
-from app.providers.base import DeviceCapability, DeviceInfo, DeviceType
+from app.providers.base import DeviceCapability
 from app.providers.mock.provider import MockProvider
 
 
@@ -46,17 +48,31 @@ def test_capabilities_to_list_empty() -> None:
 
 
 @pytest.mark.asyncio
-async def test_discover_returns_all_devices(provider: MockProvider, mock_session: MagicMock) -> None:
+async def test_discover_returns_all_devices(
+    provider: MockProvider, mock_session: MagicMock
+) -> None:
     """discover_and_sync calls the provider and returns a DiscoveryResult."""
-    from unittest.mock import patch, AsyncMock as AM
+    from unittest.mock import AsyncMock as AM
+    from unittest.mock import patch
+
     from app.devices.repository import DeviceRepository
 
-    service = DeviceService(mock_session, provider)
+    DeviceService(mock_session, provider)
 
     # Patch repository to avoid real DB calls
-    with patch.object(DeviceRepository, "get_by_ain", return_value=None), \
-         patch.object(DeviceRepository, "upsert", new_callable=lambda: lambda self: AM(return_value=MagicMock())), \
-         patch.object(DeviceRepository, "deactivate_missing", new_callable=lambda: lambda self: AM(return_value=0)):
+    with (
+        patch.object(DeviceRepository, "get_by_ain", return_value=None),
+        patch.object(
+            DeviceRepository,
+            "upsert",
+            new_callable=lambda: lambda self: AM(return_value=MagicMock()),
+        ),
+        patch.object(
+            DeviceRepository,
+            "deactivate_missing",
+            new_callable=lambda: lambda self: AM(return_value=0),
+        ),
+    ):
         # Direct provider test is sufficient at this unit level
         devices = await provider.discover_devices()
         assert len(devices) == 4

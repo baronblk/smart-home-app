@@ -1,9 +1,10 @@
 """
 Device repository — database queries for the Device domain.
 """
+
 import uuid
-from datetime import datetime, timezone
-from typing import Sequence
+from collections.abc import Sequence
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,20 +17,14 @@ class DeviceRepository:
         self._session = session
 
     async def get_by_id(self, device_id: uuid.UUID) -> Device | None:
-        result = await self._session.execute(
-            select(Device).where(Device.id == device_id)
-        )
+        result = await self._session.execute(select(Device).where(Device.id == device_id))
         return result.scalar_one_or_none()
 
     async def get_by_ain(self, ain: str) -> Device | None:
-        result = await self._session.execute(
-            select(Device).where(Device.ain == ain)
-        )
+        result = await self._session.execute(select(Device).where(Device.ain == ain))
         return result.scalar_one_or_none()
 
-    async def get_all(
-        self, include_inactive: bool = False, limit: int = 200
-    ) -> Sequence[Device]:
+    async def get_all(self, include_inactive: bool = False, limit: int = 200) -> Sequence[Device]:
         query = select(Device)
         if not include_inactive:
             query = query.where(Device.is_active == True)  # noqa: E712

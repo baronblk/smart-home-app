@@ -4,7 +4,8 @@ JWT token creation, encoding, and decoding.
 Access tokens: short-lived (15 min), used in Authorization header.
 Refresh tokens: long-lived (7 days), stored in httponly cookie.
 """
-from datetime import datetime, timedelta, timezone
+
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from jose import JWTError, jwt
@@ -22,7 +23,7 @@ def _create_token(
     expires_delta: timedelta,
     extra_claims: dict[str, Any] | None = None,
 ) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": subject,
         "type": token_type,
@@ -58,9 +59,7 @@ def decode_access_token(token: str) -> dict[str, Any] | None:
     Returns the payload dict on success, or None if invalid/expired.
     """
     try:
-        payload: dict[str, Any] = jwt.decode(
-            token, settings.secret_key, algorithms=[ALGORITHM]
-        )
+        payload: dict[str, Any] = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
         if payload.get("type") != TOKEN_TYPE_ACCESS:
             return None
         return payload
@@ -75,9 +74,7 @@ def decode_refresh_token(token: str) -> dict[str, Any] | None:
     Returns the payload dict on success, or None if invalid/expired.
     """
     try:
-        payload: dict[str, Any] = jwt.decode(
-            token, settings.secret_key, algorithms=[ALGORITHM]
-        )
+        payload: dict[str, Any] = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
         if payload.get("type") != TOKEN_TYPE_REFRESH:
             return None
         return payload

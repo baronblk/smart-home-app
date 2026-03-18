@@ -4,6 +4,7 @@ Fritz-specific exception mapping.
 Maps fritzconnection errors to application-level exceptions so
 that the service layer never imports fritzconnection exceptions.
 """
+
 from app.exceptions import (
     DeviceCommandError,
     DeviceNotFoundError,

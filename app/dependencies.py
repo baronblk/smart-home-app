@@ -5,7 +5,8 @@ Provider-level and database-level dependencies are centralised here.
 Domain-specific dependencies (e.g. get_current_user) live in their
 respective modules and import from here.
 """
-from typing import AsyncGenerator
+
+from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,7 +39,9 @@ def get_provider() -> BaseProvider:
     """
     if settings.fritz_mock_mode:
         from app.providers.mock.provider import MockProvider
+
         return MockProvider.get_instance()
     else:
         from app.providers.fritz.provider import FritzProvider
+
         return FritzProvider.get_instance()

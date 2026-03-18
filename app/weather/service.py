@@ -4,8 +4,9 @@ Weather service — fetch and cache current weather data.
 The cache TTL is 30 minutes. The APScheduler background job
 calls refresh_weather_cache() proactively to keep the cache warm.
 """
+
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,7 +56,7 @@ class WeatherService:
                 settings.weather_location_lon,
             )
             parsed = parse_weather_data(raw)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             expires = now + timedelta(minutes=_CACHE_TTL_MINUTES)
 
             cache = await self._get_cache()
@@ -97,4 +98,4 @@ class WeatherService:
 
     @staticmethod
     def _is_valid(cache: WeatherCache) -> bool:
-        return cache.expires_at > datetime.now(timezone.utc)
+        return cache.expires_at > datetime.now(UTC)

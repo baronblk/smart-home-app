@@ -7,8 +7,9 @@ as readable strings in the database.
 Enforcement: FastAPI route handlers declare:
     current_user: User = Depends(require_role(Role.ADMIN))
 """
+
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -40,7 +41,7 @@ def has_role(user_role: str, required_role: str) -> bool:
     return _ROLE_HIERARCHY.get(user_role, -1) >= _ROLE_HIERARCHY.get(required_role, 999)
 
 
-def require_role(minimum_role: Role):  # type: ignore[return]
+def require_role(minimum_role: Role) -> Any:
     """
     FastAPI dependency factory.
 
@@ -49,13 +50,14 @@ def require_role(minimum_role: Role):  # type: ignore[return]
         async def admin_endpoint(user: User = Depends(require_role(Role.ADMIN))):
             ...
     """
+
     async def dependency(
         token: str = Depends(oauth2_scheme),
     ) -> "User":
         # Import here to avoid circular imports
         from app.auth.jwt import decode_access_token
-        from app.users.repository import UserRepository
         from app.db.session import async_session_factory
+        from app.users.repository import UserRepository
 
         payload = decode_access_token(token)
         if payload is None:
@@ -74,9 +76,7 @@ def require_role(minimum_role: Role):  # type: ignore[return]
         if not user.is_active:
             raise ForbiddenError("Account is deactivated.")
         if not has_role(user.role, minimum_role):
-            raise ForbiddenError(
-                f"Role '{minimum_role}' or higher required, got '{user.role}'."
-            )
+            raise ForbiddenError(f"Role '{minimum_role}' or higher required, got '{user.role}'.")
         return user
 
     return dependency

@@ -5,18 +5,16 @@ Centralises all direct fritzconnection AHA API calls in one place.
 All exceptions are caught and re-raised as application exceptions
 via fritz/exceptions.py.
 """
+
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import Any
 
 from app.providers.base import DeviceCapability, DeviceState
 from app.providers.fritz.exceptions import map_fritz_error
-
-if TYPE_CHECKING:
-    pass  # fritzconnection types are imported at runtime below
 
 
 class FritzAdapter:
@@ -27,12 +25,12 @@ class FritzAdapter:
     thread pool via asyncio.get_event_loop().run_in_executor().
     """
 
-    def __init__(self, fritz_home: object) -> None:
+    def __init__(self, fritz_home: Any) -> None:
         # fritz_home is a fritzconnection.lib.fritzhome.FritzHome instance
         self._fritz_home = fritz_home
         self._loop = asyncio.get_event_loop()
 
-    async def _run(self, func, *args):  # type: ignore[no-untyped-def]
+    async def _run(self, func: Any, *args: Any) -> Any:
         """Execute a synchronous fritzconnection call in a thread pool."""
         return await self._loop.run_in_executor(None, partial(func, *args))
 
@@ -50,12 +48,8 @@ class FritzAdapter:
                 is_on = await self._run(self._fritz_home.get_switch_state, ain)
 
             if DeviceCapability.THERMOSTAT in capabilities:
-                temperature_celsius = await self._run(
-                    self._fritz_home.get_temperature, ain
-                )
-                target_celsius = await self._run(
-                    self._fritz_home.get_target_temperature, ain
-                )
+                temperature_celsius = await self._run(self._fritz_home.get_temperature, ain)
+                target_celsius = await self._run(self._fritz_home.get_target_temperature, ain)
                 target_temperature = target_celsius
 
             if DeviceCapability.POWER_METER in capabilities:
@@ -75,7 +69,7 @@ class FritzAdapter:
                 power_watts=power_watts,
                 energy_wh=energy_wh,
                 brightness_level=brightness_level,
-                last_updated=datetime.now(timezone.utc),
+                last_updated=datetime.now(UTC),
             )
         except Exception as exc:
             raise map_fritz_error(exc, ain) from exc

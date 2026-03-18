@@ -1,8 +1,11 @@
 """
 Scheduler service — CRUD for schedules and automation rules.
 """
+
 import uuid
-from typing import Sequence
+from collections.abc import Sequence
+from datetime import UTC
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,9 +57,7 @@ class SchedulerService:
             raise NotFoundError(f"Schedule {schedule_id} not found.")
         return s
 
-    async def update_schedule(
-        self, schedule_id: uuid.UUID, data: ScheduleUpdate
-    ) -> Schedule:
+    async def update_schedule(self, schedule_id: uuid.UUID, data: ScheduleUpdate) -> Schedule:
         schedule = await self.get_schedule(schedule_id)
         if data.name is not None:
             schedule.name = data.name
@@ -109,9 +110,7 @@ class SchedulerService:
             raise NotFoundError(f"Automation rule {rule_id} not found.")
         return r
 
-    async def update_rule(
-        self, rule_id: uuid.UUID, data: AutomationRuleUpdate
-    ) -> AutomationRule:
+    async def update_rule(self, rule_id: uuid.UUID, data: AutomationRuleUpdate) -> AutomationRule:
         rule = await self.get_rule(rule_id)
         if data.name is not None:
             rule.name = data.name
@@ -137,14 +136,15 @@ class SchedulerService:
 
     def _register_apscheduler_job(self, schedule: Schedule) -> None:
         """Register a Schedule as an APScheduler job."""
-        from app.scheduler.tasks import _execute_action
         from app.dependencies import get_provider
+        from app.scheduler.tasks import _execute_action
 
         job_id = f"schedule_{schedule.id}"
         action_config = schedule.action_config
 
         async def job_func() -> None:
-            from datetime import datetime, timezone
+            from datetime import datetime
+
             from app.db.session import async_session_factory
             from app.scheduler.repository import ScheduleRepository
 
@@ -156,7 +156,7 @@ class SchedulerService:
                 repo = ScheduleRepository(session)
                 s = await repo.get_by_id(schedule.id)
                 if s is not None:
-                    s.last_triggered = datetime.now(timezone.utc)
+                    s.last_triggered = datetime.now(UTC)
                 await session.commit()
 
         trigger = self._build_trigger(schedule.trigger_type, schedule.trigger_config)
@@ -181,7 +181,7 @@ class SchedulerService:
                 scheduler.remove_job(job_id)
 
     @staticmethod
-    def _build_trigger(trigger_type: str, config: dict) -> object | None:
+    def _build_trigger(trigger_type: str, config: dict[str, Any]) -> Any:
         from apscheduler.triggers.cron import CronTrigger
         from apscheduler.triggers.date import DateTrigger
         from apscheduler.triggers.interval import IntervalTrigger

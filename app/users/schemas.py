@@ -1,6 +1,7 @@
 """
 Pydantic schemas for the User domain.
 """
+
 import uuid
 from datetime import datetime
 

@@ -4,6 +4,7 @@ Application-level exceptions and FastAPI exception handlers.
 All domain-specific exceptions inherit from AppError, which carries
 an HTTP status code and machine-readable error code for API responses.
 """
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 

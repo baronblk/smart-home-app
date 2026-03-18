@@ -4,6 +4,7 @@ HTML page routes — serve Jinja2 templates for the web UI.
 These routes detect browser requests (Accept: text/html) and render
 full pages. API clients receive JSON from the API routes.
 """
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates

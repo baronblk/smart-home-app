@@ -5,7 +5,11 @@ Uses the synchronous psycopg2 DSN (ALEMBIC_DATABASE_URL) for
 running migrations, while the application itself uses asyncpg.
 """
 import os
+import sys
 from logging.config import fileConfig
+
+# Ensure project root is on sys.path so `app` package is importable
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool

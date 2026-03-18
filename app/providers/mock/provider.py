@@ -7,13 +7,15 @@ and set_dimmer() all update the in-memory state, making tests deterministic.
 
 Usage: set FRITZ_MOCK_MODE=true in .env.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from app.exceptions import DeviceCommandError, DeviceNotFoundError
 from app.providers.base import (
@@ -27,7 +29,9 @@ from app.providers.base import (
 logger = logging.getLogger(__name__)
 
 # Path to fixture file (relative to project root)
-_FIXTURE_PATH = Path(__file__).parent.parent.parent.parent / "tests" / "fixtures" / "fritz_mock_data.json"
+_FIXTURE_PATH = (
+    Path(__file__).parent.parent.parent.parent / "tests" / "fixtures" / "fritz_mock_data.json"
+)
 
 _CAPABILITY_MAP: dict[str, DeviceCapability] = {
     "SWITCH": DeviceCapability.SWITCH,
@@ -53,12 +57,12 @@ class MockProvider(BaseProvider):
     For application-wide use, call MockProvider.get_instance().
     """
 
-    _instance: "MockProvider | None" = None
+    _instance: MockProvider | None = None
 
     def __init__(self, fixture_path: Path = _FIXTURE_PATH) -> None:
         data = json.loads(fixture_path.read_text())
         self._devices: dict[str, DeviceInfo] = {}
-        self._states: dict[str, dict] = {}
+        self._states: dict[str, dict[str, Any]] = {}
 
         for d in data["devices"]:
             caps = DeviceCapability(0)
@@ -80,7 +84,7 @@ class MockProvider(BaseProvider):
         logger.info("MockProvider loaded %d devices from fixture.", len(self._devices))
 
     @classmethod
-    def get_instance(cls) -> "MockProvider":
+    def get_instance(cls) -> MockProvider:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
@@ -105,7 +109,7 @@ class MockProvider(BaseProvider):
             power_watts=s.get("power_watts"),
             energy_wh=s.get("energy_wh"),
             brightness_level=s.get("brightness_level"),
-            last_updated=datetime.now(timezone.utc),
+            last_updated=datetime.now(UTC),
         )
 
     async def set_switch(self, ain: str, on: bool) -> None:
@@ -118,7 +122,7 @@ class MockProvider(BaseProvider):
         self._require_capability(ain, DeviceCapability.THERMOSTAT)
         if not (8.0 <= celsius <= 28.0) and celsius not in (0, 32):
             raise DeviceCommandError(
-                f"Temperature {celsius}°C out of range (8–28, 0=off, 32=boost)."
+                f"Temperature {celsius}°C out of range (8-28, 0=off, 32=boost)."
             )
         self._states[ain]["target_temperature"] = celsius
 
@@ -126,7 +130,7 @@ class MockProvider(BaseProvider):
         self._require_device(ain)
         self._require_capability(ain, DeviceCapability.DIMMER)
         if not (0 <= level <= 255):
-            raise DeviceCommandError(f"Brightness level {level} out of range (0–255).")
+            raise DeviceCommandError(f"Brightness level {level} out of range (0-255).")
         self._states[ain]["brightness_level"] = level
         self._states[ain]["is_on"] = level > 0
 
@@ -136,6 +140,4 @@ class MockProvider(BaseProvider):
 
     def _require_capability(self, ain: str, capability: DeviceCapability) -> None:
         if capability not in self._devices[ain].capabilities:
-            raise DeviceCommandError(
-                f"Device {ain} does not support {capability.name}."
-            )
+            raise DeviceCommandError(f"Device {ain} does not support {capability.name}.")

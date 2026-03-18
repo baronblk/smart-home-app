@@ -1,8 +1,9 @@
 """
 User service — business logic for the User domain.
 """
+
 import uuid
-from typing import Sequence
+from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

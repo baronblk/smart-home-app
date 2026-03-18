@@ -6,7 +6,10 @@ They run in the background on a fixed schedule.
 
 Each task creates its own database session — it does NOT reuse request-scoped sessions.
 """
+
 import logging
+from datetime import UTC
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +39,7 @@ async def evaluate_all_rules() -> None:
     Evaluate all enabled automation rules and execute triggered actions.
     Registered: every 60 seconds.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from app.db.session import async_session_factory
     from app.dependencies import get_provider
@@ -54,7 +57,7 @@ async def evaluate_all_rules() -> None:
                     should_fire = await _evaluate_rule(rule, provider)
                     if should_fire:
                         await _execute_action(rule.action_config, provider)
-                        rule.last_triggered = datetime.now(timezone.utc)
+                        rule.last_triggered = datetime.now(UTC)
                         triggered += 1
                 except Exception as rule_exc:
                     logger.warning("Rule '%s' evaluation failed: %s", rule.name, rule_exc)
@@ -86,20 +89,20 @@ async def refresh_weather_cache() -> None:
         logger.error("refresh_weather_cache failed: %s", exc)
 
 
-async def _evaluate_rule(rule: object, provider: object) -> bool:
+async def _evaluate_rule(rule: Any, provider: Any) -> bool:
     """
     Evaluate whether an automation rule's conditions are met.
 
     Returns True if the rule should fire, False otherwise.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     trigger_type = getattr(rule, "trigger_type", "")
     config = getattr(rule, "trigger_config", {})
 
     if trigger_type == "time":
         # Check if current time is within the specified window
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         start_time_str = config.get("start_time", "00:00")
         end_time_str = config.get("end_time", "23:59")
 
@@ -120,8 +123,7 @@ async def _evaluate_rule(rule: object, provider: object) -> bool:
         if not ain or not property_name:
             return False
 
-        from app.providers.base import BaseProvider
-        state = await provider.get_device_state(ain)  # type: ignore[union-attr]
+        state = await provider.get_device_state(ain)
         current_value = getattr(state, property_name, None)
 
         if current_value is None or threshold is None:
@@ -170,7 +172,7 @@ def _compare(value: float, operator: str, threshold: float) -> bool:
     return False
 
 
-async def _execute_action(action_config: dict, provider: object) -> None:
+async def _execute_action(action_config: dict[str, Any], provider: Any) -> None:
     """Execute a device_control action."""
     ain = action_config.get("ain")
     action = action_config.get("action")
@@ -179,14 +181,11 @@ async def _execute_action(action_config: dict, provider: object) -> None:
     if not ain or not action:
         return
 
-    from app.providers.base import BaseProvider
-    p = provider  # type: ignore[assignment]
-
     if action == "on":
-        await p.set_switch(ain, True)  # type: ignore[union-attr]
+        await provider.set_switch(ain, True)
     elif action == "off":
-        await p.set_switch(ain, False)  # type: ignore[union-attr]
+        await provider.set_switch(ain, False)
     elif action == "temperature" and value is not None:
-        await p.set_temperature(ain, float(value))  # type: ignore[union-attr]
+        await provider.set_temperature(ain, float(value))
     elif action == "brightness" and value is not None:
-        await p.set_dimmer(ain, int(value))  # type: ignore[union-attr]
+        await provider.set_dimmer(ain, int(value))

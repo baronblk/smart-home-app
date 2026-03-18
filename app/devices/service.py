@@ -1,9 +1,10 @@
 """
 Device service — business logic for the Device domain.
 """
+
 import uuid
-from datetime import datetime, timezone
-from typing import Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,7 +36,7 @@ class DeviceService:
         for info in devices_info:
             existing = await self._repo.get_by_ain(info.ain)
             caps = _capabilities_to_list(info.capabilities)
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
             device = Device(
                 ain=info.ain,
@@ -112,7 +113,7 @@ class DeviceService:
         """
         devices = await self._repo.get_all(include_inactive=False)
         count = 0
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         for device in devices:
             try:
@@ -139,8 +140,8 @@ class DeviceService:
 
 def _capabilities_to_list(capabilities: DeviceCapability) -> list[str]:
     """Convert DeviceCapability flags to a JSON-serializable list of strings."""
-    result = []
+    result: list[str] = []
     for cap in DeviceCapability:
-        if cap in capabilities:
+        if cap in capabilities and cap.name is not None:
             result.append(cap.name)
     return result

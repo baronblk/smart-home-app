@@ -4,8 +4,10 @@ Scheduler SQLAlchemy models.
 Schedule: time-based device action (cron/interval/one-shot).
 AutomationRule: condition-based rule (trigger + optional condition + action).
 """
+
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -27,6 +29,7 @@ class Schedule(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     action_type: currently "device_control"
     action_config: {"ain": "...", "action": "on"|"off"|"temperature"|"brightness", "value": ...}
     """
+
     __tablename__ = "schedules"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -34,22 +37,18 @@ class Schedule(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     # Trigger definition
     trigger_type: Mapped[str] = mapped_column(String(32), nullable=False)
-    trigger_config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    trigger_config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
     # Action definition
     action_type: Mapped[str] = mapped_column(String(32), nullable=False, default="device_control")
-    action_config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    action_config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
     # State
     is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    last_triggered: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_triggered: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Owner (FK to users — added as string column for simplicity before ORM relation)
-    created_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     def __repr__(self) -> str:
         return f"<Schedule name={self.name} trigger={self.trigger_type} enabled={self.is_enabled}>"
@@ -70,26 +69,23 @@ class AutomationRule(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     action_type: "device_control"
     action_config: same as Schedule.action_config
     """
+
     __tablename__ = "automation_rules"
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     trigger_type: Mapped[str] = mapped_column(String(32), nullable=False)
-    trigger_config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    condition_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    trigger_config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    condition_config: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     action_type: Mapped[str] = mapped_column(String(32), nullable=False, default="device_control")
-    action_config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    action_config: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
     is_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    last_triggered: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_triggered: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    created_by: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     def __repr__(self) -> str:
         return f"<AutomationRule name={self.name} trigger={self.trigger_type}>"

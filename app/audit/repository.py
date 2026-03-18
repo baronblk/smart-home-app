@@ -4,9 +4,8 @@ Audit repository — APPEND-ONLY access to audit_events.
 This repository intentionally exposes NO update or delete methods.
 The audit log is immutable by design.
 """
-import uuid
-from datetime import datetime
-from typing import Sequence
+
+from collections.abc import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,7 +48,8 @@ class AuditRepository:
         return result.scalars().all()
 
     async def count(self, filters: AuditEventFilter | None = None) -> int:
-        from sqlalchemy import func, select as sa_select
+        from sqlalchemy import func
+        from sqlalchemy import select as sa_select
 
         query = sa_select(func.count()).select_from(AuditEvent)
         if filters:

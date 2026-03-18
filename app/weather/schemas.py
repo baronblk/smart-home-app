@@ -1,6 +1,7 @@
 """
 Pydantic schemas for the Weather domain.
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel

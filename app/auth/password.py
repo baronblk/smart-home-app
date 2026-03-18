@@ -1,6 +1,7 @@
 """
 Password hashing and verification using bcrypt via passlib.
 """
+
 from passlib.context import CryptContext
 
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

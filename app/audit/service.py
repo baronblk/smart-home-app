@@ -5,11 +5,13 @@ emit_event() is the primary interface for writing audit events.
 It uses asyncio.create_task() to write non-blockingly — the
 calling request handler does not wait for the audit write to complete.
 """
+
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +20,9 @@ from app.audit.repository import AuditRepository
 from app.audit.schemas import AuditEventFilter
 
 logger = logging.getLogger(__name__)
+
+# Set to hold strong references to background tasks
+_background_tasks: set[asyncio.Task[None]] = set()
 
 
 class AuditService:
@@ -55,7 +60,7 @@ def emit_event(
         emit_event("device_control", actor_id=user.id, resource_type="device",
                    resource_id=ain, payload={"action": "on"})
     """
-    asyncio.create_task(
+    _task = asyncio.create_task(
         _write_event(
             action=action,
             actor_id=actor_id,
@@ -66,6 +71,9 @@ def emit_event(
             user_agent=user_agent,
         )
     )
+    # Store reference to prevent garbage collection of the task
+    _background_tasks.add(_task)
+    _task.add_done_callback(_background_tasks.discard)
 
 
 async def _write_event(
@@ -82,7 +90,7 @@ async def _write_event(
 
     try:
         event = AuditEvent(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             actor_id=actor_id,
             action=action,
             resource_type=resource_type,

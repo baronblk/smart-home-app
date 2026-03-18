@@ -3,8 +3,10 @@ Audit log endpoints — admin-only, paginated and filterable.
 
 GET /api/v1/audit — list audit events
 """
+
 import uuid
 from datetime import datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +31,7 @@ async def list_audit_events(
     until: datetime | None = Query(default=None),
     current_user: User = Depends(require_role(Role.ADMIN)),
     session: AsyncSession = Depends(get_db),
-) -> list:
+) -> list[Any]:
     filters = AuditEventFilter(
         action=action,
         resource_type=resource_type,
