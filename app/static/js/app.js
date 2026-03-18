@@ -1,24 +1,74 @@
 // ============================================================
-// smart-home-app — Alpine.js component definitions
+// smart-home-app — Global JS + Alpine.js components
 // ============================================================
 
-// Global HTMX configuration
+// ============================================================
+// Auth helper — retrieves the access token from localStorage.
+// ============================================================
+function getAccessToken() {
+    return localStorage.getItem("access_token") || "";
+}
+
+/**
+ * Authenticated fetch wrapper — automatically adds Authorization header
+ * and redirects to /login on 401.
+ */
+async function authFetch(url, options = {}) {
+    const token = getAccessToken();
+    const headers = {
+        ...options.headers,
+        "Authorization": `Bearer ${token}`,
+    };
+    const resp = await fetch(url, { ...options, headers });
+    if (resp.status === 401) {
+        // Token expired or invalid — redirect to login
+        localStorage.removeItem("access_token");
+        window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname);
+        return resp;
+    }
+    return resp;
+}
+
+// ============================================================
+// Auth gate — redirect to /login if no token is set.
+// Excluded pages: /login
+// ============================================================
 document.addEventListener("DOMContentLoaded", () => {
-    // Add CSRF token to all HTMX requests (Phase 2+)
+    const path = window.location.pathname;
+    const publicPaths = ["/login"];
+
+    if (!publicPaths.includes(path) && !getAccessToken()) {
+        window.location.href = "/login?next=" + encodeURIComponent(path);
+        return;
+    }
+
+    // Add Authorization header to all HTMX requests
     document.body.addEventListener("htmx:configRequest", (event) => {
-        const token = document
+        const token = getAccessToken();
+        if (token) {
+            event.detail.headers["Authorization"] = `Bearer ${token}`;
+        }
+        // CSRF token support (future)
+        const csrfToken = document
             .querySelector('meta[name="csrf-token"]')
             ?.getAttribute("content");
-        if (token) {
-            event.detail.headers["X-CSRF-Token"] = token;
+        if (csrfToken) {
+            event.detail.headers["X-CSRF-Token"] = csrfToken;
         }
     });
 
-    // Show loading indicator on HTMX requests
+    // Handle 401 responses from HTMX
+    document.body.addEventListener("htmx:responseError", (event) => {
+        if (event.detail.xhr?.status === 401) {
+            localStorage.removeItem("access_token");
+            window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname);
+        }
+    });
+
+    // Loading indicator
     document.body.addEventListener("htmx:beforeRequest", () => {
         document.getElementById("loading-indicator")?.classList.remove("hidden");
     });
-
     document.body.addEventListener("htmx:afterRequest", () => {
         document.getElementById("loading-indicator")?.classList.add("hidden");
     });
@@ -26,7 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ============================================================
 // Alpine.js: Device toggle component
-// Used in device cards to toggle switch state via HTMX.
 // ============================================================
 document.addEventListener("alpine:init", () => {
     Alpine.data("deviceToggle", (ain, initialState) => ({
@@ -38,12 +87,9 @@ document.addEventListener("alpine:init", () => {
             this.loading = true;
             const action = this.isOn ? "off" : "on";
             try {
-                const resp = await fetch(`/api/v1/devices/${this.ain}/${action}`, {
+                const resp = await authFetch(`/api/v1/devices/${this.ain}/${action}`, {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${getAccessToken()}`,
-                    },
+                    headers: { "Content-Type": "application/json" },
                 });
                 if (resp.ok) {
                     this.isOn = !this.isOn;
@@ -78,12 +124,9 @@ document.addEventListener("alpine:init", () => {
         async setTemperature() {
             this.saving = true;
             try {
-                await fetch(`/api/v1/devices/${this.ain}/temperature`, {
+                await authFetch(`/api/v1/devices/${this.ain}/temperature`, {
                     method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${getAccessToken()}`,
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ celsius: this.temperature }),
                 });
             } finally {
@@ -92,11 +135,3 @@ document.addEventListener("alpine:init", () => {
         },
     }));
 });
-
-// ============================================================
-// Auth helper — retrieves the access token from localStorage.
-// Phase 2+ will populate this via the login flow.
-// ============================================================
-function getAccessToken() {
-    return localStorage.getItem("access_token") || "";
-}

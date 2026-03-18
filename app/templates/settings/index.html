@@ -125,12 +125,9 @@ function settingsPage() {
         testResult: null,
 
         async init() {
-            const token = localStorage.getItem("access_token") || "";
-            const headers = { Authorization: `Bearer ${token}` };
-
             const [providerResp, systemResp] = await Promise.all([
-                fetch("/api/v1/settings/provider", { headers }),
-                fetch("/api/v1/settings/system", { headers }),
+                authFetch("/api/v1/settings/provider"),
+                authFetch("/api/v1/settings/system"),
             ]);
 
             if (providerResp.ok) this.provider = await providerResp.json();
@@ -141,10 +138,8 @@ function settingsPage() {
             this.testing = true;
             this.testResult = null;
             try {
-                const token = localStorage.getItem("access_token") || "";
-                const resp = await fetch("/api/v1/settings/provider/test", {
+                const resp = await authFetch("/api/v1/settings/provider/test", {
                     method: "POST",
-                    headers: { Authorization: `Bearer ${token}` },
                 });
                 if (resp.ok) {
                     this.testResult = await resp.json();

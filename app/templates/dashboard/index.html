@@ -69,14 +69,11 @@
 <script>
 // Load dashboard statistics
 async function loadDashboardStats() {
-    const token = localStorage.getItem("access_token") || "";
-    const headers = { Authorization: `Bearer ${token}` };
-
     try {
         const [devicesResp, schedulesResp, rulesResp] = await Promise.all([
-            fetch("/api/v1/devices", { headers }),
-            fetch("/api/v1/schedules", { headers }),
-            fetch("/api/v1/automations", { headers }),
+            authFetch("/api/v1/devices"),
+            authFetch("/api/v1/schedules"),
+            authFetch("/api/v1/automations"),
         ]);
 
         if (devicesResp.ok) {

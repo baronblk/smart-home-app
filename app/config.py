@@ -6,7 +6,7 @@ This is the single source of truth for configuration — never import
 settings from anywhere else.
 """
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -74,6 +74,30 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     admin_email: str = Field(default="admin@example.com", alias="ADMIN_EMAIL")
     admin_password: str = Field(default="changeme", alias="ADMIN_PASSWORD")
+
+    # ------------------------------------------------------------------
+    # Compatibility aliases (alternative env var names)
+    # ------------------------------------------------------------------
+    first_superuser_email: str | None = Field(default=None, alias="FIRST_SUPERUSER_EMAIL")
+    first_superuser_password: str | None = Field(default=None, alias="FIRST_SUPERUSER_PASSWORD")
+    openmeteo_latitude: float | None = Field(default=None, alias="OPENMETEO_LATITUDE")
+    openmeteo_longitude: float | None = Field(default=None, alias="OPENMETEO_LONGITUDE")
+    app_env: str | None = Field(default=None, alias="APP_ENV")
+
+    @model_validator(mode="after")
+    def _apply_aliases(self) -> "Settings":
+        """Map alternative env var names to canonical fields."""
+        if self.first_superuser_email and self.admin_email == "admin@example.com":
+            self.admin_email = self.first_superuser_email
+        if self.first_superuser_password and self.admin_password == "changeme":
+            self.admin_password = self.first_superuser_password
+        if self.openmeteo_latitude is not None:
+            self.weather_location_lat = self.openmeteo_latitude
+        if self.openmeteo_longitude is not None:
+            self.weather_location_lon = self.openmeteo_longitude
+        if self.app_env is not None and self.environment == "development":
+            self.environment = self.app_env
+        return self
 
 
 settings = Settings()

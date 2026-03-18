@@ -62,10 +62,7 @@
 {% block scripts %}
 <script>
 async function loadProfile() {
-    const token = localStorage.getItem("access_token") || "";
-    const resp = await fetch("/api/v1/users/me", {
-        headers: { Authorization: `Bearer ${token}` }
-    });
+    const resp = await authFetch("/api/v1/users/me");
     if (resp.ok) {
         const user = await resp.json();
         document.getElementById("profile-email").textContent = user.email;
@@ -75,7 +72,7 @@ async function loadProfile() {
 }
 
 async function logout() {
-    await fetch("/api/v1/auth/logout", { method: "POST" });
+    await authFetch("/api/v1/auth/logout", { method: "POST" });
     localStorage.removeItem("access_token");
     window.location.href = "/login";
 }
@@ -83,12 +80,9 @@ async function logout() {
 document.getElementById("change-password-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target));
-    const resp = await fetch("/api/v1/users/me/password", {
+    const resp = await authFetch("/api/v1/users/me/password", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
     });
     alert(resp.ok ? "Passwort geändert." : "Fehler beim Ändern des Passworts.");
