@@ -1,0 +1,146 @@
+"""
+Device service — business logic for the Device domain.
+"""
+import uuid
+from datetime import datetime, timezone
+from typing import Sequence
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.devices.models import Device, DeviceStateSnapshot
+from app.devices.repository import DeviceRepository
+from app.devices.schemas import DeviceUpdate, DiscoveryResult
+from app.exceptions import NotFoundError
+from app.providers.base import BaseProvider, DeviceCapability, DeviceState
+
+
+class DeviceService:
+    def __init__(self, session: AsyncSession, provider: BaseProvider) -> None:
+        self._repo = DeviceRepository(session)
+        self._provider = provider
+
+    async def discover_and_sync(self) -> DiscoveryResult:
+        """
+        Run device discovery and sync results to the database.
+
+        - New devices are created.
+        - Existing devices are updated (name, capabilities, firmware).
+        - Devices no longer returned by discovery are deactivated.
+        """
+        devices_info = await self._provider.discover_devices()
+
+        added = 0
+        updated = 0
+
+        for info in devices_info:
+            existing = await self._repo.get_by_ain(info.ain)
+            caps = _capabilities_to_list(info.capabilities)
+            now = datetime.now(timezone.utc)
+
+            device = Device(
+                ain=info.ain,
+                name=info.name,
+                device_type=str(info.device_type),
+                capabilities=caps,
+                firmware_version=info.firmware_version,
+                last_seen=now if info.is_present else None,
+            )
+
+            if existing is None:
+                await self._repo.upsert(device)
+                added += 1
+            else:
+                await self._repo.upsert(device)
+                updated += 1
+
+        active_ains = [d.ain for d in devices_info]
+        deactivated = await self._repo.deactivate_missing(active_ains)
+
+        return DiscoveryResult(
+            discovered=len(devices_info),
+            added=added,
+            updated=updated,
+            deactivated=deactivated,
+        )
+
+    async def list_devices(self, include_inactive: bool = False) -> Sequence[Device]:
+        return await self._repo.get_all(include_inactive=include_inactive)
+
+    async def get_device(self, device_id: uuid.UUID) -> Device:
+        device = await self._repo.get_by_id(device_id)
+        if device is None:
+            raise NotFoundError(f"Device {device_id} not found.")
+        return device
+
+    async def get_device_by_ain(self, ain: str) -> Device:
+        device = await self._repo.get_by_ain(ain)
+        if device is None:
+            raise NotFoundError(f"Device with AIN '{ain}' not found.")
+        return device
+
+    async def get_live_state(self, ain: str) -> DeviceState:
+        """Fetch real-time state from the provider."""
+        return await self._provider.get_device_state(ain)
+
+    async def update_device(self, device_id: uuid.UUID, data: DeviceUpdate) -> Device:
+        device = await self.get_device(device_id)
+        if data.name is not None:
+            device.name = data.name
+        if data.location is not None:
+            device.location = data.location
+        if data.is_active is not None:
+            device.is_active = data.is_active
+        return await self._repo.update(device)
+
+    async def turn_on(self, ain: str) -> None:
+        await self._provider.set_switch(ain, on=True)
+
+    async def turn_off(self, ain: str) -> None:
+        await self._provider.set_switch(ain, on=False)
+
+    async def set_temperature(self, ain: str, celsius: float) -> None:
+        await self._provider.set_temperature(ain, celsius)
+
+    async def set_brightness(self, ain: str, level: int) -> None:
+        await self._provider.set_dimmer(ain, level)
+
+    async def poll_and_snapshot_all(self) -> int:
+        """
+        Fetch state for all active devices and write snapshots to DB.
+        Called by the APScheduler background job every 60 seconds.
+        Returns the number of snapshots written.
+        """
+        devices = await self._repo.get_all(include_inactive=False)
+        count = 0
+        now = datetime.now(timezone.utc)
+
+        for device in devices:
+            try:
+                state = await self._provider.get_device_state(device.ain)
+                snapshot = DeviceStateSnapshot(
+                    device_id=device.id,
+                    ain=device.ain,
+                    recorded_at=now,
+                    is_on=state.is_on,
+                    temperature_celsius=state.temperature_celsius,
+                    target_temperature=state.target_temperature,
+                    power_watts=state.power_watts,
+                    energy_wh=state.energy_wh,
+                    brightness_level=state.brightness_level,
+                )
+                await self._repo.save_snapshot(snapshot)
+                count += 1
+            except Exception:
+                # Device may be offline — continue polling others
+                pass
+
+        return count
+
+
+def _capabilities_to_list(capabilities: DeviceCapability) -> list[str]:
+    """Convert DeviceCapability flags to a JSON-serializable list of strings."""
+    result = []
+    for cap in DeviceCapability:
+        if cap in capabilities:
+            result.append(cap.name)
+    return result

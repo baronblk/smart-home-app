@@ -16,9 +16,10 @@ from app.models.base import Base  # noqa: F401
 
 # Import domain models so Alembic sees them in Base.metadata
 from app.users.models import User  # noqa: F401
+from app.devices.models import Device, DeviceStateSnapshot  # noqa: F401
 
 # Import additional models as they are added in later phases:
-# from app.devices.models import Device  # noqa: F401
+# from app.scheduler.models import Schedule, AutomationRule  # noqa: F401
 # from app.scheduler.models import Schedule, AutomationRule  # noqa: F401
 # from app.audit.models import AuditEvent  # noqa: F401
 # from app.weather.models import WeatherCache  # noqa: F401
