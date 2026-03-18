@@ -17,11 +17,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 async def run_all() -> None:
     print("==> Running seed scripts...")
 
-    # Import and run seeds as they are added in subsequent phases.
-    # Example (Phase 2):
-    # from seeds.seed_001_admin_user import seed
-    # await seed()
-    # print("  [ok] 001_admin_user")
+    from seeds.seed_001_admin_user import seed as seed_001
+    await seed_001()
 
     print("==> All seeds complete.")
 
