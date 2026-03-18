@@ -3,9 +3,6 @@
 #
 # Runs on every push to main and on all pull requests.
 # Jobs: lint → typecheck → test → docker-build
-#
-# Full implementation added in Phase 9 (CI/CD).
-# This stub validates the workflow file structure.
 # ============================================================
 
 name: CI
