@@ -1,0 +1,68 @@
+{
+  "devices": [
+    {
+      "ain": "11630 0111085",
+      "name": "Wohnzimmer Thermostat",
+      "device_type": "thermostat",
+      "capabilities": ["THERMOSTAT"],
+      "is_present": true,
+      "firmware_version": "05.02",
+      "state": {
+        "is_on": null,
+        "temperature_celsius": 21.5,
+        "target_temperature": 22.0,
+        "power_watts": null,
+        "energy_wh": null,
+        "brightness_level": null
+      }
+    },
+    {
+      "ain": "08761 0374811",
+      "name": "Küche Steckdose",
+      "device_type": "switch",
+      "capabilities": ["SWITCH", "POWER_METER"],
+      "is_present": true,
+      "firmware_version": "04.16",
+      "state": {
+        "is_on": true,
+        "temperature_celsius": null,
+        "target_temperature": null,
+        "power_watts": 12.5,
+        "energy_wh": 4321,
+        "brightness_level": null
+      }
+    },
+    {
+      "ain": "09995 0123456",
+      "name": "Schlafzimmer Lampe",
+      "device_type": "light",
+      "capabilities": ["SWITCH", "DIMMER"],
+      "is_present": true,
+      "firmware_version": "06.01",
+      "state": {
+        "is_on": false,
+        "temperature_celsius": null,
+        "target_temperature": null,
+        "power_watts": null,
+        "energy_wh": null,
+        "brightness_level": 128
+      }
+    },
+    {
+      "ain": "11630 0222999",
+      "name": "Keller Thermostat (offline)",
+      "device_type": "thermostat",
+      "capabilities": ["THERMOSTAT"],
+      "is_present": false,
+      "firmware_version": "05.01",
+      "state": {
+        "is_on": null,
+        "temperature_celsius": null,
+        "target_temperature": 18.0,
+        "power_watts": null,
+        "energy_wh": null,
+        "brightness_level": null
+      }
+    }
+  ]
+}
