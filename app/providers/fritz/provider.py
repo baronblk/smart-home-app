@@ -1,12 +1,12 @@
 """
-FritzProvider — implements BaseProvider using fritzconnection.
+FritzProvider — implements BaseProvider using fritzconnection 1.14+.
+
+Uses FritzHomeAutomation (TR-064) for device discovery and switch control,
+and FritzConnection.call_http() (AHA-HTTP interface) for thermostat,
+power meter, and dimmer commands.
 
 This is the only module (besides fritz/adapter.py, fritz/discovery.py,
 fritz/exceptions.py) that is allowed to import fritzconnection.
-
-The provider is a singleton: call FritzProvider.get_instance() to
-get or create the shared instance. The instance is initialised lazily
-on first use.
 """
 
 from __future__ import annotations
@@ -14,9 +14,10 @@ from __future__ import annotations
 import asyncio
 import logging
 from functools import partial
+from typing import Any
 
 from app.config import settings
-from app.providers.base import BaseProvider, DeviceInfo, DeviceState
+from app.providers.base import BaseProvider, DeviceCapability, DeviceInfo, DeviceState
 from app.providers.fritz.adapter import FritzAdapter
 from app.providers.fritz.discovery import parse_device_info
 from app.providers.fritz.exceptions import map_fritz_error
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 class FritzProvider(BaseProvider):
     """
-    Connects to a FRITZ!Box via fritzconnection's FritzHome class.
+    Connects to a FRITZ!Box via fritzconnection.
 
     fritzconnection is synchronous. All calls are run in a thread pool
     via asyncio.run_in_executor to avoid blocking the event loop.
@@ -36,9 +37,9 @@ class FritzProvider(BaseProvider):
     _lock: asyncio.Lock = asyncio.Lock()
 
     def __init__(self) -> None:
-        self._fritz_home: object | None = None
+        self._fha: Any | None = None  # FritzHomeAutomation instance
         self._adapter: FritzAdapter | None = None
-        self._device_capabilities: dict[str, object] = {}
+        self._device_capabilities: dict[str, DeviceCapability] = {}
 
     @classmethod
     def get_instance(cls) -> FritzProvider:
@@ -47,32 +48,30 @@ class FritzProvider(BaseProvider):
         return cls._instance
 
     async def _ensure_connected(self) -> None:
-        """Lazily initialise the fritzconnection FritzHome instance."""
-        if self._fritz_home is not None:
+        """Lazily initialise the fritzconnection FritzHomeAutomation instance."""
+        if self._fha is not None:
             return
 
         async with self._lock:
-            if self._fritz_home is not None:
+            if self._fha is not None:
                 return
 
             loop = asyncio.get_event_loop()
             try:
-                # Import fritzconnection here — the ONLY place in the app
-                from fritzconnection.lib.fritzhome import FritzHome
+                from fritzconnection.lib.fritzhomeauto import FritzHomeAutomation
 
-                fritz_home = await loop.run_in_executor(
+                fha = await loop.run_in_executor(
                     None,
                     partial(
-                        FritzHome,
+                        FritzHomeAutomation,
                         address=settings.fritz_host,
                         user=settings.fritz_username,
                         password=settings.fritz_password,
                         use_tls=False,
                     ),
                 )
-                await loop.run_in_executor(None, fritz_home.login)
-                self._fritz_home = fritz_home
-                self._adapter = FritzAdapter(fritz_home)
+                self._fha = fha
+                self._adapter = FritzAdapter(fha)
                 logger.info("Connected to FRITZ!Box at %s", settings.fritz_host)
             except Exception as exc:
                 raise map_fritz_error(exc) from exc
@@ -81,10 +80,12 @@ class FritzProvider(BaseProvider):
         await self._ensure_connected()
         loop = asyncio.get_event_loop()
         try:
-            fritz_home = self._fritz_home
+            fha = self._fha
+            assert fha is not None
+            # Get list of HomeAutomationDevice objects
             devices_raw = await loop.run_in_executor(
                 None,
-                fritz_home.get_device_list,  # type: ignore[union-attr]
+                fha.get_homeautomation_devices,
             )
             result = []
             for device in devices_raw:
@@ -100,14 +101,13 @@ class FritzProvider(BaseProvider):
         assert self._adapter is not None
         capabilities = self._device_capabilities.get(ain)
         if capabilities is None:
-            # Fetch capabilities on demand
             await self.discover_devices()
             capabilities = self._device_capabilities.get(ain)
             if capabilities is None:
                 from app.exceptions import DeviceNotFoundError
 
                 raise DeviceNotFoundError(ain)
-        return await self._adapter.get_state(ain, capabilities)  # type: ignore[arg-type]
+        return await self._adapter.get_state(ain, capabilities)
 
     async def set_switch(self, ain: str, on: bool) -> None:
         await self._ensure_connected()

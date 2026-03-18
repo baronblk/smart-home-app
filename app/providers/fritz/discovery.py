@@ -19,15 +19,18 @@ if TYPE_CHECKING:
 
 def parse_device_info(device: object) -> DeviceInfo:
     """
-    Convert a fritzconnection device object into a DeviceInfo DTO.
+    Convert a fritzconnection HomeAutomationDevice into a DeviceInfo DTO.
 
-    The device object is an instance of fritzconnection's internal
-    device class returned by FritzHome.get_device_list().
+    The device object is returned by FritzHomeAutomation.get_homeautomation_devices().
+    It has attributes: AIN, DeviceName, ProductName, Manufacturer, FunctionBitMask,
+    and is_* property helpers for capability detection.
     """
-    ain: str = getattr(device, "ain", "").strip()
-    name: str = getattr(device, "name", "Unknown")
-    is_present: bool = bool(getattr(device, "present", False))
-    firmware: str | None = getattr(device, "fw_version", None)
+    ain: str = (getattr(device, "AIN", "") or "").strip()
+    raw_name = getattr(device, "DeviceName", None) or getattr(device, "ProductName", "Unknown")
+    name: str = str(raw_name)
+    # FritzHomeAutomation devices are present if returned; check SwitchState etc. for online
+    is_present: bool = True
+    firmware: str | None = getattr(device, "FirmwareVersion", None) or None
 
     capabilities = _parse_capabilities(device)
     device_type = _infer_device_type(capabilities, device)
@@ -43,17 +46,17 @@ def parse_device_info(device: object) -> DeviceInfo:
 
 
 def _parse_capabilities(device: object) -> DeviceCapability:
-    """Detect which capabilities a device supports."""
+    """Detect which capabilities a device supports via is_* properties."""
     capabilities = DeviceCapability(0)
 
-    # fritzconnection exposes has_switch, has_thermostat, etc.
-    if getattr(device, "has_switch", False):
+    # fritzconnection 1.14+ exposes is_switchable, is_radiator_control, etc.
+    if getattr(device, "is_switchable", False) or getattr(device, "is_pluggable", False):
         capabilities |= DeviceCapability.SWITCH
-    if getattr(device, "has_thermostat", False):
+    if getattr(device, "is_radiator_control", False):
         capabilities |= DeviceCapability.THERMOSTAT
-    if getattr(device, "has_level_control", False):
+    if getattr(device, "is_adjustable", False) or getattr(device, "is_bulb", False):
         capabilities |= DeviceCapability.DIMMER
-    if getattr(device, "has_powermeter", False):
+    if getattr(device, "is_energy_sensor", False):
         capabilities |= DeviceCapability.POWER_METER
 
     return capabilities
