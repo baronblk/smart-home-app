@@ -141,21 +141,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/app/Dockerfile
-          push: false
-          load: true
-          tags: smart-home-app:ci-${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        run: |
+          docker build -f docker/app/Dockerfile -t smart-home-app:ci-${{ github.sha }} .
 
-      - name: Smoke test — verify psycopg + asyncpg importable in image
+      - name: Smoke test — verify DB drivers importable in image
         run: |
           docker run --rm smart-home-app:ci-${{ github.sha }} \
             python -c "import psycopg; import asyncpg; import psycopg2; print('DB drivers OK')"
