@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — smart-home-app{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block header_actions %}
+<button
+    hx-post="/api/v1/devices/discover"
+    hx-headers='{"Authorization": "Bearer " + localStorage.getItem("access_token") || ""}'
+    hx-swap="none"
+    hx-indicator="#loading-indicator"
+    class="text-xs text-blue-600 hover:text-blue-800 font-medium"
+>
+    Geräte suchen
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Loading indicator (hidden by default) -->
+<div id="loading-indicator" class="htmx-indicator fixed top-4 right-4 z-50">
+    <div class="bg-blue-600 text-white text-xs px-3 py-1 rounded-full">Laden…</div>
+</div>
+
+<!-- Summary cards row -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Geräte</div>
+        <div class="text-2xl font-bold text-gray-800" id="stat-devices">—</div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Online</div>
+        <div class="text-2xl font-bold text-green-600" id="stat-online">—</div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Zeitpläne</div>
+        <div class="text-2xl font-bold text-blue-600" id="stat-schedules">—</div>
+    </div>
+
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <div class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Regeln</div>
+        <div class="text-2xl font-bold text-purple-600" id="stat-rules">—</div>
+    </div>
+
+</div>
+
+<!-- Device grid (loaded via HTMX) -->
+<div class="mb-6">
+    <h2 class="text-base font-semibold text-gray-700 mb-3">Geräte</h2>
+    <div
+        id="device-grid"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+        hx-get="/partials/devices"
+        hx-trigger="load, every 30s"
+        hx-swap="innerHTML"
+    >
+        <div class="col-span-full text-sm text-gray-400">Geräte werden geladen…</div>
+    </div>
+</div>
+
+<!-- Weather widget (loaded in Phase 8) -->
+<div id="weather-widget" class="hidden"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load dashboard statistics
+async function loadDashboardStats() {
+    const token = localStorage.getItem("access_token") || "";
+    const headers = { Authorization: `Bearer ${token}` };
+
+    try {
+        const [devicesResp, schedulesResp, rulesResp] = await Promise.all([
+            fetch("/api/v1/devices", { headers }),
+            fetch("/api/v1/schedules", { headers }),
+            fetch("/api/v1/automations", { headers }),
+        ]);
+
+        if (devicesResp.ok) {
+            const devices = await devicesResp.json();
+            document.getElementById("stat-devices").textContent = devices.length;
+            const online = devices.filter(d => d.last_seen !== null).length;
+            document.getElementById("stat-online").textContent = online;
+        }
+
+        if (schedulesResp.ok) {
+            const schedules = await schedulesResp.json();
+            document.getElementById("stat-schedules").textContent = schedules.length;
+        }
+
+        if (rulesResp.ok) {
+            const rules = await rulesResp.json();
+            document.getElementById("stat-rules").textContent = rules.length;
+        }
+    } catch (e) {
+        console.warn("Could not load dashboard stats:", e);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", loadDashboardStats);
+</script>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Geräte — smart-home-app{% endblock %}
+{% block page_title %}Geräte{% endblock %}
+
+{% block header_actions %}
+<button
+    hx-post="/api/v1/devices/discover"
+    hx-headers='{"Authorization": "Bearer " + localStorage.getItem("access_token") || ""}'
+    hx-target="#discovery-result"
+    hx-swap="innerHTML"
+    class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+>
+    Geräte suchen
+</button>
+<span id="discovery-result" class="text-xs text-gray-400"></span>
+{% endblock %}
+
+{% block content %}
+<div
+    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+    hx-get="/partials/devices"
+    hx-trigger="load, every 60s"
+    hx-swap="innerHTML"
+>
+    <div class="col-span-full text-sm text-gray-400">Geräte werden geladen…</div>
+</div>
+{% endblock %}

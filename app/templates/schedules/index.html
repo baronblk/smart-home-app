@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Zeitpläne — smart-home-app{% endblock %}
+{% block page_title %}Zeitpläne & Automationen{% endblock %}
+
+{% block content %}
+
+<div class="max-w-4xl">
+
+    <!-- Schedules section -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold text-gray-700">Zeitbasierte Zeitpläne</h2>
+            <button
+                x-data
+                @click="$dispatch('open-create-schedule')"
+                class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+            >
+                + Zeitplan erstellen
+            </button>
+        </div>
+
+        <div
+            id="schedules-list"
+            hx-get="/partials/schedules"
+            hx-trigger="load"
+            hx-swap="innerHTML"
+        >
+            <div class="text-sm text-gray-400">Zeitpläne werden geladen…</div>
+        </div>
+    </div>
+
+    <!-- Automation rules section -->
+    <div>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold text-gray-700">Automationsregeln</h2>
+            <button
+                x-data
+                @click="$dispatch('open-create-rule')"
+                class="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700"
+            >
+                + Regel erstellen
+            </button>
+        </div>
+
+        <div
+            id="rules-list"
+            hx-get="/partials/automations"
+            hx-trigger="load"
+            hx-swap="innerHTML"
+        >
+            <div class="text-sm text-gray-400">Regeln werden geladen…</div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
