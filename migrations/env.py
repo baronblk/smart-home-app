@@ -35,9 +35,10 @@ if config.config_file_name is not None:
 
 # Use the synchronous DB URL from environment
 database_url = os.environ.get("ALEMBIC_DATABASE_URL") or os.environ.get("DATABASE_URL", "")
-# Convert asyncpg URL to psycopg2 for synchronous Alembic use
+# Convert asyncpg URL to synchronous psycopg (v3) for Alembic use.
+# Both psycopg (v3) and psycopg2 are installed; prefer the modern driver.
 if database_url.startswith("postgresql+asyncpg://"):
-    database_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
+    database_url = database_url.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
 
 config.set_main_option("sqlalchemy.url", database_url)
 

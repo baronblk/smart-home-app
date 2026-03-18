@@ -36,7 +36,7 @@ class Settings(BaseSettings):
         alias="DATABASE_URL",
     )
     alembic_database_url: str = Field(
-        default="postgresql+psycopg2://smarthome:changeme@db:5432/smarthome",
+        default="postgresql+psycopg://smarthome:changeme@db:5432/smarthome",
         alias="ALEMBIC_DATABASE_URL",
     )
 

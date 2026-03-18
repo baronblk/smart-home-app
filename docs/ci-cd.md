@@ -18,7 +18,7 @@ This project uses GitHub Actions for continuous integration and container releas
 1. **Lint** — `ruff check` + `ruff format --check`
 2. **Type Check** — `mypy app/`
 3. **Test** — `pytest --cov` with PostgreSQL + Redis service containers
-4. **Docker Build** — Builds image (no push), runs only if lint + typecheck + test pass
+4. **Docker Build + Smoke Test** — Builds image (no push), verifies DB drivers importable, verifies app module loads
 
 ### Service Containers (Test job)
 

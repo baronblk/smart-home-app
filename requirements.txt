@@ -13,7 +13,8 @@ jinja2==3.1.5
 # Database
 sqlalchemy[asyncio]==2.0.36
 asyncpg==0.30.0
-psycopg2-binary==2.9.10     # synchronous driver for Alembic only
+psycopg[binary]==3.2.4      # modern synchronous driver (postgresql+psycopg://)
+psycopg2-binary==2.9.10     # legacy driver (postgresql+psycopg2://), kept for compat
 alembic==1.14.0
 
 # Data validation
