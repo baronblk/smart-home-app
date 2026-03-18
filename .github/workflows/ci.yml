@@ -147,14 +147,14 @@ jobs:
 
       - name: Smoke test — verify DB drivers importable in image
         run: |
-          docker run --rm smart-home-app:ci-${{ github.sha }} \
-            python -c "import psycopg; import asyncpg; import psycopg2; print('DB drivers OK')"
+          docker run --rm --entrypoint python smart-home-app:ci-${{ github.sha }} \
+            -c "import psycopg; import asyncpg; import psycopg2; print('DB drivers OK')"
 
       - name: Smoke test — verify app module loads
         run: |
-          docker run --rm \
+          docker run --rm --entrypoint python \
             -e DATABASE_URL=postgresql+asyncpg://x:x@localhost/x \
             -e SECRET_KEY=ci-smoke-test \
             -e FRITZ_MOCK_MODE=true \
             smart-home-app:ci-${{ github.sha }} \
-            python -c "from app.main import app; print(f'App loaded: {len(app.routes)} routes')"
+            -c "from app.main import app; print(f'App loaded: {len(app.routes)} routes')"
