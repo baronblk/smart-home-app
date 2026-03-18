@@ -126,7 +126,11 @@ async def test_get_current_fetches_when_cache_expired() -> None:
     with (
         patch("app.weather.service.fetch_current_weather", new_callable=AsyncMock) as mock_fetch,
         patch("app.weather.service.parse_weather_data") as mock_parse,
+        patch("app.weather.service.settings") as mock_settings,
     ):
+        mock_settings.openweathermap_api_key = "test-key"
+        mock_settings.weather_location_lat = 52.52
+        mock_settings.weather_location_lon = 13.405
         mock_fetch.return_value = OWM_RESPONSE
         mock_parse.return_value = {
             "temperature_celsius": 12.4,
@@ -137,28 +141,15 @@ async def test_get_current_fetches_when_cache_expired() -> None:
             "wind_speed_ms": 5.3,
             "icon_code": "04d",
         }
-        # After update, simulate valid cache for return
-        updated_cache = MagicMock()
-        updated_cache.location_key = "52.52,13.405"
-        updated_cache.temperature_celsius = 12.4
-        updated_cache.feels_like_celsius = 10.1
-        updated_cache.humidity_percent = 72
-        updated_cache.condition = "Clouds"
-        updated_cache.description = "überwiegend bewölkt"
-        updated_cache.wind_speed_ms = 5.3
-        updated_cache.icon_code = "04d"
-        updated_cache.fetched_at = now
-        updated_cache.expires_at = now + timedelta(minutes=30)
         mock_session.refresh.side_effect = lambda obj: None
 
-        # Patch model_validate to use the updated_cache attributes
         with patch(
             "app.weather.schemas.WeatherRead.model_validate",
             return_value=MagicMock(condition="Clouds"),
         ):
             await service.get_current()
 
-    mock_fetch.assert_called_once()
+        mock_fetch.assert_called_once()
 
 
 @pytest.mark.asyncio
