@@ -25,6 +25,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Startup logic runs before yield; shutdown logic runs after.
     """
     # --- Startup ---
+    # Auto-create admin user if not exists
+    await _ensure_admin_user()
+
     from app.scheduler.engine import start_scheduler
 
     start_scheduler()
@@ -37,12 +40,43 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     stop_scheduler()
 
 
+async def _ensure_admin_user() -> None:
+    """Create the admin user on first startup if no admin exists yet."""
+    import logging
+
+    from sqlalchemy import select
+
+    from app.auth.password import hash_password
+    from app.auth.rbac import Role
+    from app.db.session import async_session_factory
+    from app.users.models import User
+
+    log = logging.getLogger(__name__)
+    try:
+        async with async_session_factory() as session:
+            result = await session.execute(select(User).where(User.role == Role.ADMIN).limit(1))
+            if result.scalar_one_or_none() is not None:
+                return  # Admin already exists
+
+            admin = User(
+                email=settings.admin_email,
+                hashed_password=hash_password(settings.admin_password),
+                role=Role.ADMIN,
+                full_name="Administrator",
+            )
+            session.add(admin)
+            await session.commit()
+            log.info("Created initial admin user: %s", settings.admin_email)
+    except Exception as exc:
+        log.warning("Could not auto-create admin user: %s", exc)
+
+
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application instance."""
     app = FastAPI(
         title="smart-home-app",
         description="Production-ready FRITZ!Box smart home controller",
-        version="0.1.0",
+        version="0.2.2",
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
         lifespan=lifespan,

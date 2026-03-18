@@ -28,8 +28,11 @@ from app.providers.base import (
 
 logger = logging.getLogger(__name__)
 
-# Path to fixture file (relative to project root)
-_FIXTURE_PATH = (
+# Path to fixture file (colocated with this module so it works in Docker too)
+_FIXTURE_PATH = Path(__file__).parent / "fritz_mock_data.json"
+
+# Legacy path for backward compatibility with test fixtures
+_FIXTURE_PATH_LEGACY = (
     Path(__file__).parent.parent.parent.parent / "tests" / "fixtures" / "fritz_mock_data.json"
 )
 
@@ -59,7 +62,10 @@ class MockProvider(BaseProvider):
 
     _instance: MockProvider | None = None
 
-    def __init__(self, fixture_path: Path = _FIXTURE_PATH) -> None:
+    def __init__(self, fixture_path: Path | None = None) -> None:
+        if fixture_path is None:
+            # Try colocated file first (Docker), fall back to tests/ (local dev)
+            fixture_path = _FIXTURE_PATH if _FIXTURE_PATH.exists() else _FIXTURE_PATH_LEGACY
         data = json.loads(fixture_path.read_text())
         self._devices: dict[str, DeviceInfo] = {}
         self._states: dict[str, dict[str, Any]] = {}
