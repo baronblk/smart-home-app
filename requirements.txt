@@ -1,0 +1,40 @@
+# ============================================================
+# Production dependencies — smart-home-app
+# ============================================================
+
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# Templating
+jinja2==3.1.5
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+psycopg2-binary==2.9.10     # synchronous driver for Alembic only
+alembic==1.14.0
+
+# Data validation
+pydantic==2.10.4
+pydantic-settings==2.7.0
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# FRITZ!Box integration
+fritzconnection==1.14.0
+
+# Background scheduler
+apscheduler==3.10.4
+
+# Redis client
+redis[hiredis]==5.2.1
+
+# HTTP client (weather integration, async)
+httpx==0.28.1
+
+# Utilities
+python-dotenv==1.0.1

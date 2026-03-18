@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="de" x-data="{ sidebarOpen: true }">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}smart-home-app{% endblock %}</title>
+
+    <!-- Tailwind CSS (CDN - replace with compiled output in production) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- HTMX for partial page updates -->
+    <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+
+    <!-- Alpine.js for lightweight client-side reactivity -->
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="/static/css/app.css" />
+
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-100 text-gray-900 font-sans">
+
+    <!-- Sidebar + Main layout -->
+    <div class="flex h-screen overflow-hidden">
+
+        <!-- Sidebar -->
+        <aside
+            x-show="sidebarOpen"
+            class="w-64 bg-slate-800 text-white flex flex-col flex-shrink-0"
+        >
+            <!-- Logo / App name -->
+            <div class="flex items-center gap-3 px-6 py-5 border-b border-slate-700">
+                <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span class="text-lg font-semibold tracking-wide">SmartHome</span>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 px-3 py-4 space-y-1">
+                <a href="/" class="nav-link {% if request.url.path == '/' %}nav-link-active{% endif %}">
+                    Dashboard
+                </a>
+                <a href="/devices" class="nav-link {% if '/devices' in request.url.path %}nav-link-active{% endif %}">
+                    Geräte
+                </a>
+                <a href="/schedules" class="nav-link {% if '/schedules' in request.url.path %}nav-link-active{% endif %}">
+                    Zeitpläne
+                </a>
+                <a href="/automations" class="nav-link {% if '/automations' in request.url.path %}nav-link-active{% endif %}">
+                    Automationen
+                </a>
+                <a href="/audit" class="nav-link {% if '/audit' in request.url.path %}nav-link-active{% endif %}">
+                    Protokoll
+                </a>
+            </nav>
+
+            <!-- User info -->
+            <div class="px-4 py-4 border-t border-slate-700 text-sm text-slate-400">
+                <a href="/profile" class="hover:text-white transition-colors">
+                    Profil &amp; Einstellungen
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+
+            <!-- Top bar -->
+            <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4">
+                <!-- Sidebar toggle -->
+                <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 hover:text-gray-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+
+                <h1 class="text-lg font-medium text-gray-700">
+                    {% block page_title %}Dashboard{% endblock %}
+                </h1>
+
+                <div class="ml-auto flex items-center gap-4 text-sm text-gray-500">
+                    {% block header_actions %}{% endblock %}
+                </div>
+            </header>
+
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) if get_flashed_messages is defined else [] %}
+                {% if messages %}
+                    <div class="px-6 pt-4">
+                        {% for category, message in messages %}
+                            <div class="mb-2 px-4 py-3 rounded border
+                                {% if category == 'error' %}bg-red-50 border-red-200 text-red-700
+                                {% elif category == 'success' %}bg-green-50 border-green-200 text-green-700
+                                {% else %}bg-blue-50 border-blue-200 text-blue-700{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <!-- Page content -->
+            <main class="flex-1 overflow-y-auto px-6 py-6">
+                {% block content %}{% endblock %}
+            </main>
+
+        </div>
+    </div>
+
+    <!-- Custom JS -->
+    <script src="/static/js/app.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

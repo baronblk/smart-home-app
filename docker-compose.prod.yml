@@ -1,0 +1,27 @@
+# ============================================================
+# smart-home-app — Docker Compose production overrides
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ============================================================
+
+services:
+
+  app:
+    # Remove the source volume mount (use baked-in image code)
+    volumes: []
+    # Use the entrypoint.sh (runs migrations + starts uvicorn without --reload)
+    command: []
+    environment:
+      ENVIRONMENT: production
+      LOG_LEVEL: WARNING
+
+  db:
+    # Do not expose the database port externally in production
+    ports: []
+
+  redis:
+    # Do not expose Redis port externally in production
+    ports: []
+
+  nginx:
+    # Nginx is always active in production
+    profiles: []
