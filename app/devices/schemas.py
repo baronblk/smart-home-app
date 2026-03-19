@@ -16,6 +16,8 @@ class DeviceRead(BaseModel):
     capabilities: list[str]
     location: str | None
     is_active: bool
+    is_favorite: bool
+    display_order: int
     last_seen: datetime | None
     firmware_version: str | None
     created_at: datetime
@@ -28,6 +30,8 @@ class DeviceUpdate(BaseModel):
     name: str | None = None
     location: str | None = None
     is_active: bool | None = None
+    is_favorite: bool | None = None
+    display_order: int | None = None
 
 
 class DeviceStateRead(BaseModel):

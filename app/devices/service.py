@@ -91,6 +91,10 @@ class DeviceService:
             device.location = data.location
         if data.is_active is not None:
             device.is_active = data.is_active
+        if data.is_favorite is not None:
+            device.is_favorite = data.is_favorite
+        if data.display_order is not None:
+            device.display_order = data.display_order
         return await self._repo.update(device)
 
     async def turn_on(self, ain: str) -> None:

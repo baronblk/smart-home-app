@@ -69,6 +69,11 @@ async def device_detail_page(
     )
 
 
+@router.get("/groups", response_class=HTMLResponse)
+async def groups_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("groups/manage.html", {"request": request})
+
+
 @router.get("/schedules", response_class=HTMLResponse)
 async def schedules_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("schedules/index.html", {"request": request})

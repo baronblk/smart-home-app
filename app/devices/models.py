@@ -49,6 +49,14 @@ class Device(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # Firmware version from last discovery
     firmware_version: Mapped[str | None] = mapped_column(String(32), nullable=True, default=None)
 
+    # Dashboard favorites and ordering
+    is_favorite: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    display_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
     def __repr__(self) -> str:
         return f"<Device ain={self.ain} name={self.name} type={self.device_type}>"
 

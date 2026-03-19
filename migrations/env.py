@@ -25,6 +25,7 @@ from app.devices.models import Device, DeviceStateSnapshot  # noqa: F401
 from app.scheduler.models import AutomationRule, Schedule  # noqa: F401
 from app.audit.models import AuditEvent  # noqa: F401
 from app.weather.models import WeatherCache  # noqa: F401
+from app.groups.models import DeviceGroup, DeviceGroupMember  # noqa: F401
 
 # Alembic Config object, gives access to values in alembic.ini
 config = context.config

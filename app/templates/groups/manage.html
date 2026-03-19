@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Gruppen verwalten — smart-home-app{% endblock %}
+{% block page_title %}Gerätegruppen{% endblock %}
+
+{% block header_actions %}
+<button
+    @click="showCreateModal = true"
+    x-data
+    class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+>
+    + Neue Gruppe
+</button>
+{% endblock %}
+
+{% block content %}
+
+<div class="max-w-5xl" x-data="groupManager()">
+
+    <!-- Create Group Modal -->
+    <div x-show="showCreateModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showCreateModal = false">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Neue Gruppe erstellen</h3>
+            <form @submit.prevent="createGroup()">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" x-model="newGroup.name" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="z.B. Wohnzimmer" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Icon (Emoji)</label>
+                            <input type="text" x-model="newGroup.icon"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="🏠" maxlength="4" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Farbe</label>
+                            <input type="color" x-model="newGroup.color"
+                                   class="w-full h-10 border border-gray-300 rounded-lg cursor-pointer" />
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" @click="showCreateModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
+                    <button type="submit" :disabled="creating" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400">
+                        <span x-text="creating ? 'Erstelle...' : 'Erstellen'"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Groups List -->
+    <div class="space-y-4">
+        <template x-for="group in groups" :key="group.id">
+            <div class="bg-white rounded-xl border border-gray-200 p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl" x-text="group.icon || '📁'"></span>
+                        <h3 class="text-base font-semibold text-gray-800" x-text="group.name"></h3>
+                        <span class="text-xs text-gray-400" x-text="group.members.length + ' Geräte'"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button @click="toggleAddDevice(group)" class="text-xs text-blue-500 hover:text-blue-700">+ Gerät</button>
+                        <button @click="deleteGroup(group.id)" class="text-xs text-red-400 hover:text-red-600">Löschen</button>
+                    </div>
+                </div>
+
+                <!-- Group member devices -->
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="member in group.members" :key="member.device_id">
+                        <div class="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-sm">
+                            <span x-text="getDeviceName(member.device_id)"></span>
+                            <button @click="removeMember(group.id, member.device_id)" class="text-gray-400 hover:text-red-500 ml-1">&times;</button>
+                        </div>
+                    </template>
+                    <template x-if="group.members.length === 0">
+                        <span class="text-xs text-gray-400">Noch keine Geräte zugeordnet</span>
+                    </template>
+                </div>
+
+                <!-- Add device dropdown (toggle) -->
+                <div x-show="addingToGroup === group.id" x-transition class="mt-3 pt-3 border-t border-gray-100">
+                    <select @change="addDeviceToGroup(group.id, $event.target.value); $event.target.value=''"
+                            class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Gerät auswählen...</option>
+                        <template x-for="device in availableDevices(group)" :key="device.id">
+                            <option :value="device.id" x-text="device.name"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+        </template>
+
+        <template x-if="groups.length === 0 && !loading">
+            <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
+                Noch keine Gruppen erstellt. Klicke oben auf "+ Neue Gruppe" um deine Geräte zu organisieren.
+            </div>
+        </template>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function groupManager() {
+    return {
+        groups: [],
+        devices: [],
+        loading: true,
+        showCreateModal: false,
+        creating: false,
+        addingToGroup: null,
+        newGroup: { name: '', icon: '', color: '#3b82f6' },
+
+        async init() {
+            await Promise.all([this.loadGroups(), this.loadDevices()]);
+            this.loading = false;
+        },
+
+        async loadGroups() {
+            const resp = await authFetch('/api/v1/groups');
+            if (resp.ok) this.groups = await resp.json();
+        },
+
+        async loadDevices() {
+            const resp = await authFetch('/api/v1/devices');
+            if (resp.ok) this.devices = await resp.json();
+        },
+
+        getDeviceName(deviceId) {
+            const d = this.devices.find(d => d.id === deviceId);
+            return d ? d.name : 'Unbekannt';
+        },
+
+        availableDevices(group) {
+            const memberIds = group.members.map(m => m.device_id);
+            return this.devices.filter(d => !memberIds.includes(d.id));
+        },
+
+        toggleAddDevice(group) {
+            this.addingToGroup = this.addingToGroup === group.id ? null : group.id;
+        },
+
+        async createGroup() {
+            this.creating = true;
+            const resp = await authFetch('/api/v1/groups', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(this.newGroup),
+            });
+            if (resp.ok) {
+                await this.loadGroups();
+                this.showCreateModal = false;
+                this.newGroup = { name: '', icon: '', color: '#3b82f6' };
+            }
+            this.creating = false;
+        },
+
+        async deleteGroup(groupId) {
+            if (!confirm('Gruppe wirklich löschen? Die Geräte bleiben erhalten.')) return;
+            await authFetch(`/api/v1/groups/${groupId}`, { method: 'DELETE' });
+            await this.loadGroups();
+        },
+
+        async addDeviceToGroup(groupId, deviceId) {
+            if (!deviceId) return;
+            await authFetch(`/api/v1/groups/${groupId}/members`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: deviceId }),
+            });
+            await this.loadGroups();
+        },
+
+        async removeMember(groupId, deviceId) {
+            await authFetch(`/api/v1/groups/${groupId}/members/${deviceId}`, { method: 'DELETE' });
+            await this.loadGroups();
+        },
+    };
+}
+</script>
+{% endblock %}
