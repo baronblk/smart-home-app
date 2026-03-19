@@ -1,4 +1,5 @@
 """Analytics endpoints — aggregated time-series data for charts."""
+
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
