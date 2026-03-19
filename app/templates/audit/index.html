@@ -5,11 +5,11 @@
 
 {% block content %}
 
-<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden" x-data="auditPage()">
 
     <!-- Filter bar -->
     <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-4 flex-wrap">
-        <select id="filter-action" class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <select x-model="filterAction" @change="load()" class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Alle Aktionen</option>
             <option value="device_control">Gerät gesteuert</option>
             <option value="user_login">Login</option>
@@ -18,7 +18,8 @@
             <option value="rule_triggered">Regel ausgelöst</option>
         </select>
 
-        <span class="text-sm text-gray-400 ml-auto" id="event-count"></span>
+        <button @click="load()" class="text-xs text-blue-500 hover:text-blue-700">Aktualisieren</button>
+        <span class="text-sm text-gray-400 ml-auto" x-text="events.length > 0 ? events.length + ' Ereignisse' : ''"></span>
     </div>
 
     <!-- Events table -->
@@ -32,32 +33,130 @@
                     <th class="px-5 py-3 font-medium text-gray-600 text-xs uppercase tracking-wide">Nutzer</th>
                 </tr>
             </thead>
-            <tbody
-                id="audit-events"
-                hx-get="/api/v1/audit"
-                hx-trigger="load"
-                hx-swap="innerHTML"
-            >
-                <tr>
-                    <td colspan="4" class="px-5 py-8 text-center text-gray-400 text-sm">
-                        Ereignisse werden geladen…
-                    </td>
-                </tr>
+            <tbody>
+                <template x-if="loading">
+                    <tr>
+                        <td colspan="4" class="px-5 py-8 text-center text-gray-400 text-sm">
+                            Ereignisse werden geladen…
+                        </td>
+                    </tr>
+                </template>
+                <template x-if="!loading && events.length === 0">
+                    <tr>
+                        <td colspan="4" class="px-5 py-8 text-center text-gray-400 text-sm">
+                            Keine Ereignisse gefunden.
+                        </td>
+                    </tr>
+                </template>
+                <template x-for="event in events" :key="event.id">
+                    <tr class="border-t border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td class="px-5 py-3 text-gray-500 text-xs whitespace-nowrap" x-text="formatTime(event.timestamp)"></td>
+                        <td class="px-5 py-3">
+                            <span :class="actionBadge(event.action)" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                  x-text="actionLabel(event.action)"></span>
+                        </td>
+                        <td class="px-5 py-3 text-gray-600 text-xs">
+                            <span x-text="event.resource_type || '—'"></span>
+                            <span x-show="event.resource_id" class="text-gray-400 ml-1 font-mono" x-text="event.resource_id ? event.resource_id.substring(0, 8) + '…' : ''"></span>
+                        </td>
+                        <td class="px-5 py-3 text-gray-500 text-xs" x-text="event.actor_id ? event.actor_id.substring(0, 8) + '…' : '—'"></td>
+                    </tr>
+                </template>
             </tbody>
         </table>
     </div>
 
     <!-- Pagination -->
     <div class="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
-        <button id="prev-page" class="text-sm text-blue-500 hover:text-blue-700 disabled:opacity-40" disabled>
+        <button @click="prevPage()" :disabled="offset === 0"
+                class="text-sm text-blue-500 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed">
             ← Zurück
         </button>
-        <span id="page-info" class="text-xs text-gray-400"></span>
-        <button id="next-page" class="text-sm text-blue-500 hover:text-blue-700">
+        <span class="text-xs text-gray-400" x-text="'Seite ' + (Math.floor(offset / limit) + 1)"></span>
+        <button @click="nextPage()" :disabled="events.length < limit"
+                class="text-sm text-blue-500 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed">
             Weiter →
         </button>
     </div>
 
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+function auditPage() {
+    return {
+        events: [],
+        loading: true,
+        filterAction: '',
+        limit: 50,
+        offset: 0,
+
+        async init() {
+            await this.load();
+        },
+
+        async load() {
+            this.loading = true;
+            try {
+                let url = `/api/v1/audit?limit=${this.limit}&offset=${this.offset}`;
+                if (this.filterAction) url += `&action=${this.filterAction}`;
+                const r = await authFetch(url);
+                if (r.ok) {
+                    this.events = await r.json();
+                } else if (r.status === 403) {
+                    this.events = [];
+                }
+            } catch(e) {
+                console.warn('Audit load failed:', e);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        nextPage() {
+            this.offset += this.limit;
+            this.load();
+        },
+
+        prevPage() {
+            this.offset = Math.max(0, this.offset - this.limit);
+            this.load();
+        },
+
+        formatTime(iso) {
+            if (!iso) return '—';
+            return new Date(iso).toLocaleString('de-DE', {
+                day: '2-digit', month: '2-digit', year: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+        },
+
+        actionLabel(action) {
+            const labels = {
+                device_control: 'Gerät gesteuert',
+                user_login: 'Login',
+                user_created: 'Nutzer erstellt',
+                schedule_triggered: 'Zeitplan',
+                rule_triggered: 'Regel',
+                device_discovery: 'Gerätesuche',
+            };
+            return labels[action] || action;
+        },
+
+        actionBadge(action) {
+            const badges = {
+                device_control: 'bg-blue-100 text-blue-700',
+                user_login: 'bg-green-100 text-green-700',
+                user_created: 'bg-teal-100 text-teal-700',
+                schedule_triggered: 'bg-yellow-100 text-yellow-700',
+                rule_triggered: 'bg-purple-100 text-purple-700',
+                device_discovery: 'bg-gray-100 text-gray-600',
+            };
+            return badges[action] || 'bg-gray-100 text-gray-600';
+        },
+    };
+}
+</script>
 {% endblock %}

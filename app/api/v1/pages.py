@@ -79,6 +79,11 @@ async def schedules_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("schedules/index.html", {"request": request})
 
 
+@router.get("/automations", response_class=HTMLResponse)
+async def automations_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("automations/index.html", {"request": request})
+
+
 @router.get("/audit", response_class=HTMLResponse)
 async def audit_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("audit/index.html", {"request": request})

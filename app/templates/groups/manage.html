@@ -3,19 +3,20 @@
 {% block title %}Gruppen verwalten — smart-home-app{% endblock %}
 {% block page_title %}Gerätegruppen{% endblock %}
 
-{% block header_actions %}
-<button
-    @click="showCreateModal = true"
-    x-data
-    class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
->
-    + Neue Gruppe
-</button>
-{% endblock %}
-
 {% block content %}
 
 <div class="max-w-5xl" x-data="groupManager()">
+
+    <!-- Page header with action button (inside Alpine scope) -->
+    <div class="flex items-center justify-between mb-6">
+        <p class="text-sm text-gray-500">Organisiere deine Geräte in Gruppen.</p>
+        <button
+            @click="showCreateModal = true"
+            class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+        >
+            + Neue Gruppe
+        </button>
+    </div>
 
     <!-- Create Group Modal -->
     <div x-show="showCreateModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showCreateModal = false">

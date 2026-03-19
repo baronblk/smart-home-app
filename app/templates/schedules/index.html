@@ -1,32 +1,211 @@
 {% extends "base.html" %}
 
 {% block title %}Zeitpläne — smart-home-app{% endblock %}
-{% block page_title %}Zeitpläne & Automationen{% endblock %}
+{% block page_title %}Zeitpläne & Regeln{% endblock %}
 
 {% block content %}
 
-<div class="max-w-4xl">
+<div class="max-w-4xl" x-data="schedulesPage()">
+
+    <!-- Create Schedule Modal -->
+    <div x-show="showScheduleModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showScheduleModal = false">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Neuer Zeitplan</h3>
+            <form @submit.prevent="createSchedule()">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" x-model="newSchedule.name" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="z.B. Morgens Licht an" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Auslöser-Typ</label>
+                        <select x-model="newSchedule.trigger_type"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="cron">Cron (täglich/wöchentlich)</option>
+                            <option value="interval">Intervall (alle N Minuten)</option>
+                        </select>
+                    </div>
+                    <template x-if="newSchedule.trigger_type === 'cron'">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Uhrzeit</label>
+                            <input type="time" x-model="newSchedule.triggerTime"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <p class="text-xs text-gray-400 mt-1">Täglich zur gewählten Uhrzeit ausführen</p>
+                        </div>
+                    </template>
+                    <template x-if="newSchedule.trigger_type === 'interval'">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Intervall (Minuten)</label>
+                            <input type="number" x-model.number="newSchedule.intervalMinutes" min="1" max="1440"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="30" />
+                        </div>
+                    </template>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Gerät</label>
+                            <select x-model="newSchedule.deviceId"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Gerät wählen...</option>
+                                <template x-for="d in devices" :key="d.id">
+                                    <option :value="d.ain" x-text="d.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Aktion</label>
+                            <select x-model="newSchedule.deviceAction"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="turn_on">Einschalten</option>
+                                <option value="turn_off">Ausschalten</option>
+                                <option value="toggle">Umschalten</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" @click="showScheduleModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
+                    <button type="submit" :disabled="saving" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400">
+                        <span x-text="saving ? 'Speichere...' : 'Erstellen'"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Rule Modal -->
+    <div x-show="showRuleModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showRuleModal = false">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Neue Automationsregel</h3>
+            <form @submit.prevent="createRule()">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" x-model="newRule.name" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="z.B. Licht bei Einbruch der Dunkelheit" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Auslöser-Typ</label>
+                        <select x-model="newRule.trigger_type"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="time">Uhrzeit</option>
+                            <option value="device_state">Gerätestatus</option>
+                            <option value="weather">Wetterbedingung</option>
+                        </select>
+                    </div>
+                    <template x-if="newRule.trigger_type === 'time'">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Uhrzeit</label>
+                            <input type="time" x-model="newRule.triggerTime"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                    </template>
+                    <template x-if="newRule.trigger_type === 'device_state'">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Trigger-Gerät</label>
+                                <select x-model="newRule.triggerDeviceId"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Gerät wählen...</option>
+                                    <template x-for="d in devices" :key="d.id">
+                                        <option :value="d.ain" x-text="d.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <select x-model="newRule.triggerState"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="on">Eingeschaltet</option>
+                                    <option value="off">Ausgeschaltet</option>
+                                </select>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Aktions-Gerät</label>
+                            <select x-model="newRule.deviceId"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Gerät wählen...</option>
+                                <template x-for="d in devices" :key="d.id">
+                                    <option :value="d.ain" x-text="d.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Aktion</label>
+                            <select x-model="newRule.deviceAction"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="turn_on">Einschalten</option>
+                                <option value="turn_off">Ausschalten</option>
+                                <option value="toggle">Umschalten</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" @click="showRuleModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
+                    <button type="submit" :disabled="saving" class="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-purple-400">
+                        <span x-text="saving ? 'Speichere...' : 'Erstellen'"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Schedules section -->
     <div class="mb-8">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-base font-semibold text-gray-700">Zeitbasierte Zeitpläne</h2>
-            <button
-                x-data
-                @click="$dispatch('open-create-schedule')"
-                class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
-            >
+            <button @click="showScheduleModal = true"
+                    class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">
                 + Zeitplan erstellen
             </button>
         </div>
 
-        <div
-            id="schedules-list"
-            hx-get="/partials/schedules"
-            hx-trigger="load"
-            hx-swap="innerHTML"
-        >
-            <div class="text-sm text-gray-400">Zeitpläne werden geladen…</div>
+        <div class="space-y-3">
+            <template x-for="schedule in schedules" :key="schedule.id">
+                <div class="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div :class="schedule.is_enabled ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'"
+                             class="w-8 h-8 rounded-lg flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium text-gray-800" x-text="schedule.name"></div>
+                            <div class="text-xs text-gray-400" x-text="formatTrigger(schedule)"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span x-show="schedule.last_triggered" class="text-xs text-gray-400"
+                              x-text="'Zuletzt: ' + formatTime(schedule.last_triggered)"></span>
+                        <button @click="toggleSchedule(schedule)"
+                                :class="schedule.is_enabled ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'"
+                                class="text-xs px-2 py-1 rounded-lg font-medium"
+                                x-text="schedule.is_enabled ? 'Aktiv' : 'Inaktiv'">
+                        </button>
+                        <button @click="deleteSchedule(schedule.id)" class="text-gray-400 hover:text-red-500">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </template>
+            <template x-if="schedules.length === 0 && !loading">
+                <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
+                    Noch keine Zeitpläne. Klicke auf "+ Zeitplan erstellen".
+                </div>
+            </template>
+            <template x-if="loading">
+                <div class="text-sm text-gray-400">Zeitpläne werden geladen…</div>
+            </template>
         </div>
     </div>
 
@@ -34,25 +213,241 @@
     <div>
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-base font-semibold text-gray-700">Automationsregeln</h2>
-            <button
-                x-data
-                @click="$dispatch('open-create-rule')"
-                class="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700"
-            >
+            <button @click="showRuleModal = true"
+                    class="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700">
                 + Regel erstellen
             </button>
         </div>
 
-        <div
-            id="rules-list"
-            hx-get="/partials/automations"
-            hx-trigger="load"
-            hx-swap="innerHTML"
-        >
-            <div class="text-sm text-gray-400">Regeln werden geladen…</div>
+        <div class="space-y-3">
+            <template x-for="rule in rules" :key="rule.id">
+                <div class="bg-white rounded-xl border border-gray-200 p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div :class="rule.is_enabled ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-400'"
+                             class="w-8 h-8 rounded-lg flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium text-gray-800" x-text="rule.name"></div>
+                            <div class="text-xs text-gray-400">
+                                Auslöser: <span x-text="triggerLabel(rule.trigger_type)"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span x-show="rule.last_triggered" class="text-xs text-gray-400"
+                              x-text="'Zuletzt: ' + formatTime(rule.last_triggered)"></span>
+                        <button @click="toggleRule(rule)"
+                                :class="rule.is_enabled ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-500'"
+                                class="text-xs px-2 py-1 rounded-lg font-medium"
+                                x-text="rule.is_enabled ? 'Aktiv' : 'Inaktiv'">
+                        </button>
+                        <button @click="deleteRule(rule.id)" class="text-gray-400 hover:text-red-500">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </template>
+            <template x-if="rules.length === 0 && !loading">
+                <div class="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
+                    Noch keine Automationsregeln. Klicke auf "+ Regel erstellen".
+                </div>
+            </template>
         </div>
     </div>
 
 </div>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+function schedulesPage() {
+    return {
+        schedules: [],
+        rules: [],
+        devices: [],
+        loading: true,
+        saving: false,
+        showScheduleModal: false,
+        showRuleModal: false,
+
+        newSchedule: {
+            name: '',
+            trigger_type: 'cron',
+            triggerTime: '07:00',
+            intervalMinutes: 30,
+            deviceId: '',
+            deviceAction: 'turn_on',
+        },
+        newRule: {
+            name: '',
+            trigger_type: 'time',
+            triggerTime: '20:00',
+            triggerDeviceId: '',
+            triggerState: 'on',
+            deviceId: '',
+            deviceAction: 'turn_on',
+        },
+
+        async init() {
+            await Promise.all([this.loadSchedules(), this.loadRules(), this.loadDevices()]);
+            this.loading = false;
+        },
+
+        async loadSchedules() {
+            try {
+                const r = await authFetch('/api/v1/schedules');
+                if (r.ok) this.schedules = await r.json();
+            } catch(e) { console.warn('Schedules load failed:', e); }
+        },
+
+        async loadRules() {
+            try {
+                const r = await authFetch('/api/v1/automations');
+                if (r.ok) this.rules = await r.json();
+            } catch(e) { console.warn('Rules load failed:', e); }
+        },
+
+        async loadDevices() {
+            try {
+                const r = await authFetch('/api/v1/devices');
+                if (r.ok) this.devices = await r.json();
+            } catch(e) { console.warn('Devices load failed:', e); }
+        },
+
+        async createSchedule() {
+            this.saving = true;
+            try {
+                const s = this.newSchedule;
+                let triggerConfig = {};
+                if (s.trigger_type === 'cron') {
+                    const [hour, minute] = (s.triggerTime || '07:00').split(':');
+                    triggerConfig = { hour: parseInt(hour), minute: parseInt(minute) };
+                } else {
+                    triggerConfig = { minutes: s.intervalMinutes || 30 };
+                }
+                const payload = {
+                    name: s.name,
+                    trigger_type: s.trigger_type,
+                    trigger_config: triggerConfig,
+                    action_type: 'device_control',
+                    action_config: { ain: s.deviceId, action: s.deviceAction },
+                    is_enabled: true,
+                };
+                const r = await authFetch('/api/v1/schedules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                if (r.ok) {
+                    await this.loadSchedules();
+                    this.showScheduleModal = false;
+                    this.newSchedule = { name: '', trigger_type: 'cron', triggerTime: '07:00', intervalMinutes: 30, deviceId: '', deviceAction: 'turn_on' };
+                } else {
+                    const err = await r.json().catch(() => ({}));
+                    alert('Fehler: ' + (err.detail || r.status));
+                }
+            } finally { this.saving = false; }
+        },
+
+        async createRule() {
+            this.saving = true;
+            try {
+                const rule = this.newRule;
+                let triggerConfig = {};
+                if (rule.trigger_type === 'time') {
+                    const [hour, minute] = (rule.triggerTime || '20:00').split(':');
+                    triggerConfig = { hour: parseInt(hour), minute: parseInt(minute) };
+                } else if (rule.trigger_type === 'device_state') {
+                    triggerConfig = { ain: rule.triggerDeviceId, state: rule.triggerState };
+                } else {
+                    triggerConfig = {};
+                }
+                const payload = {
+                    name: rule.name,
+                    trigger_type: rule.trigger_type,
+                    trigger_config: triggerConfig,
+                    action_type: 'device_control',
+                    action_config: { ain: rule.deviceId, action: rule.deviceAction },
+                    is_enabled: true,
+                };
+                const r = await authFetch('/api/v1/automations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                if (r.ok) {
+                    await this.loadRules();
+                    this.showRuleModal = false;
+                    this.newRule = { name: '', trigger_type: 'time', triggerTime: '20:00', triggerDeviceId: '', triggerState: 'on', deviceId: '', deviceAction: 'turn_on' };
+                } else {
+                    const err = await r.json().catch(() => ({}));
+                    alert('Fehler: ' + (err.detail || r.status));
+                }
+            } finally { this.saving = false; }
+        },
+
+        async toggleSchedule(schedule) {
+            const r = await authFetch(`/api/v1/schedules/${schedule.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_enabled: !schedule.is_enabled }),
+            });
+            if (r.ok) await this.loadSchedules();
+        },
+
+        async toggleRule(rule) {
+            const r = await authFetch(`/api/v1/automations/${rule.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_enabled: !rule.is_enabled }),
+            });
+            if (r.ok) await this.loadRules();
+        },
+
+        async deleteSchedule(id) {
+            if (!confirm('Zeitplan wirklich loeschen?')) return;
+            await authFetch(`/api/v1/schedules/${id}`, { method: 'DELETE' });
+            await this.loadSchedules();
+        },
+
+        async deleteRule(id) {
+            if (!confirm('Regel wirklich loeschen?')) return;
+            await authFetch(`/api/v1/automations/${id}`, { method: 'DELETE' });
+            await this.loadRules();
+        },
+
+        formatTrigger(schedule) {
+            const cfg = schedule.trigger_config || {};
+            if (schedule.trigger_type === 'cron') {
+                const h = String(cfg.hour ?? 0).padStart(2, '0');
+                const m = String(cfg.minute ?? 0).padStart(2, '0');
+                return 'Taeglich um ' + h + ':' + m + ' Uhr';
+            }
+            if (schedule.trigger_type === 'interval') {
+                return 'Alle ' + (cfg.minutes || '?') + ' Minuten';
+            }
+            return schedule.trigger_type;
+        },
+
+        triggerLabel(type) {
+            return { time: 'Uhrzeit', device_state: 'Geraetestatus', weather: 'Wetter' }[type] || type;
+        },
+
+        formatTime(iso) {
+            if (!iso) return '';
+            const diff = (Date.now() - new Date(iso)) / 1000;
+            if (diff < 60) return 'gerade';
+            if (diff < 3600) return Math.floor(diff / 60) + ' Min. her';
+            if (diff < 86400) return Math.floor(diff / 3600) + ' Std. her';
+            return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+        },
+    };
+}
+</script>
 {% endblock %}
