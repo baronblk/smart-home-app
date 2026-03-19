@@ -1,0 +1,11 @@
+{% if cards %}
+    {% for card in cards %}
+        {% with device=card.device, state=card.state %}
+            {% include "partials/device_card.html" %}
+        {% endwith %}
+    {% endfor %}
+{% else %}
+    <div class="col-span-full text-sm text-gray-400 py-8 text-center">
+        Keine Geräte gefunden. Klicke auf "Geräte suchen" um die FRITZ!Box-Geräte zu laden.
+    </div>
+{% endif %}
