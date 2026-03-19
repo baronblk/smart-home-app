@@ -1,163 +1,67 @@
 {% extends "base.html" %}
-
 {% block title %}Automationen — smart-home-app{% endblock %}
 {% block page_title %}Automationen{% endblock %}
 
 {% block content %}
-
-<div class="max-w-4xl" x-data="automationsPage()">
-
-    <!-- Create Rule Modal -->
-    <div x-show="showRuleModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showRuleModal = false">
-        <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Neue Automationsregel</h3>
-            <form @submit.prevent="createRule()">
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                        <input type="text" x-model="newRule.name" required
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               placeholder="z.B. Licht abends einschalten" />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Beschreibung (optional)</label>
-                        <input type="text" x-model="newRule.description"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               placeholder="Kurze Beschreibung..." />
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Auslöser-Typ</label>
-                        <select x-model="newRule.trigger_type"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="time">Uhrzeit</option>
-                            <option value="device_state">Gerätestatus</option>
-                            <option value="weather">Wetterbedingung</option>
-                        </select>
-                    </div>
-                    <template x-if="newRule.trigger_type === 'time'">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Uhrzeit</label>
-                            <input type="time" x-model="newRule.triggerTime"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                        </div>
-                    </template>
-                    <template x-if="newRule.trigger_type === 'device_state'">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Trigger-Gerät</label>
-                                <select x-model="newRule.triggerDeviceId"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">Gerät wählen...</option>
-                                    <template x-for="d in devices" :key="d.id">
-                                        <option :value="d.ain" x-text="d.name"></option>
-                                    </template>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                                <select x-model="newRule.triggerState"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="on">Eingeschaltet</option>
-                                    <option value="off">Ausgeschaltet</option>
-                                </select>
-                            </div>
-                        </div>
-                    </template>
-                    <template x-if="newRule.trigger_type === 'weather'">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Wetterbedingung</label>
-                            <select x-model="newRule.weatherCondition"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="Rain">Regen</option>
-                                <option value="Snow">Schnee</option>
-                                <option value="Clear">Klar</option>
-                                <option value="Clouds">Bewölkt</option>
-                            </select>
-                        </div>
-                    </template>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Aktions-Gerät</label>
-                            <select x-model="newRule.deviceId"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">Gerät wählen...</option>
-                                <template x-for="d in devices" :key="d.id">
-                                    <option :value="d.ain" x-text="d.name"></option>
-                                </template>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Aktion</label>
-                            <select x-model="newRule.deviceAction"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="turn_on">Einschalten</option>
-                                <option value="turn_off">Ausschalten</option>
-                                <option value="toggle">Umschalten</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-end gap-3 mt-6">
-                    <button type="button" @click="showRuleModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
-                    <button type="submit" :disabled="saving" class="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-purple-400">
-                        <span x-text="saving ? 'Speichere...' : 'Erstellen'"></span>
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+<div class="max-w-4xl" x-data="automationsIndex()">
 
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
-        <p class="text-sm text-gray-500">Wenn-Dann-Regeln für deine Geräte.</p>
-        <button @click="showRuleModal = true"
-                class="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700">
+        <p class="text-sm text-gray-500">Wenn-Dann-Regeln für automatische Gerätesteuerung.</p>
+        <a href="/automations/new"
+           class="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 font-medium">
             + Neue Regel
-        </button>
-    </div>
-
-    <!-- Intro info box -->
-    <div class="bg-purple-50 border border-purple-100 rounded-xl p-4 mb-6 text-sm text-purple-700">
-        <strong>Automationsregeln</strong> lösen Aktionen aus, wenn bestimmte Bedingungen erfüllt sind — z.B. Licht einschalten um 20:00 Uhr oder Heizung reduzieren wenn ein Gerät ausgeschaltet wird.
+        </a>
     </div>
 
     <!-- Rules list -->
     <div class="space-y-3">
         <template x-for="rule in rules" :key="rule.id">
-            <div class="bg-white rounded-xl border border-gray-200 p-5">
-                <div class="flex items-start justify-between">
-                    <div class="flex items-center gap-3">
-                        <div :class="rule.is_enabled ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-400'"
-                             class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            <div class="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition-shadow">
+                <div class="flex items-start justify-between gap-4">
+                    <!-- Icon + info -->
+                    <div class="flex items-center gap-4 flex-1 min-w-0">
+                        <div :class="rule.is_enabled ? triggerColor(rule.trigger_type) : 'bg-gray-100 text-gray-400'"
+                             class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <svg x-show="rule.trigger_type === 'time'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <svg x-show="rule.trigger_type === 'device_state'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                            <svg x-show="rule.trigger_type === 'weather'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
                             </svg>
                         </div>
-                        <div>
+                        <div class="min-w-0 flex-1">
                             <div class="text-sm font-semibold text-gray-800" x-text="rule.name"></div>
-                            <div class="text-xs text-gray-400 mt-0.5" x-text="rule.description || ''"></div>
-                            <div class="flex items-center gap-3 mt-1.5">
-                                <span class="text-xs text-gray-500">
-                                    Wenn: <span class="font-medium text-gray-700" x-text="triggerLabel(rule.trigger_type)"></span>
+                            <div class="text-xs text-gray-400 mt-0.5 truncate" x-text="rule.description || ''"></div>
+                            <!-- WENN / DANN summary -->
+                            <div class="mt-2 flex items-center gap-2 text-xs flex-wrap">
+                                <span class="bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-gray-600">
+                                    WENN <span class="font-medium text-gray-800" x-text="formatTrigger(rule)"></span>
                                 </span>
-                                <span class="text-xs text-gray-400">→</span>
-                                <span class="text-xs text-gray-500">
-                                    Dann: <span class="font-medium text-gray-700" x-text="actionLabel(rule.action_config)"></span>
+                                <span class="text-gray-300">→</span>
+                                <span class="bg-gray-50 border border-gray-200 rounded px-2 py-0.5 text-gray-600">
+                                    DANN <span class="font-medium text-gray-800" x-text="formatAction(rule)"></span>
                                 </span>
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 flex-shrink-0 ml-4">
-                        <span x-show="rule.last_triggered" class="text-xs text-gray-400 hidden sm:block"
-                              x-text="'Zuletzt: ' + formatTime(rule.last_triggered)"></span>
+                    <!-- Actions -->
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <span x-show="rule.last_triggered" class="text-xs text-gray-400 hidden md:block"
+                              x-text="formatTime(rule.last_triggered)"></span>
                         <button @click="toggleRule(rule)"
-                                :class="rule.is_enabled ? 'bg-purple-100 text-purple-600 hover:bg-purple-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
-                                class="text-xs px-2.5 py-1 rounded-lg font-medium transition-colors"
+                                :class="rule.is_enabled ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'"
+                                class="text-xs px-2.5 py-1 rounded-lg font-medium transition-colors whitespace-nowrap"
                                 x-text="rule.is_enabled ? 'Aktiv' : 'Inaktiv'">
                         </button>
-                        <button @click="deleteRule(rule.id)" class="text-gray-300 hover:text-red-500 transition-colors p-1">
+                        <button @click="deleteRule(rule.id)"
+                                class="text-gray-300 hover:text-red-500 transition-colors p-1 rounded">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                             </svg>
                         </button>
                     </div>
@@ -165,58 +69,46 @@
             </div>
         </template>
 
-        <template x-if="rules.length === 0 && !loading">
-            <div class="bg-white rounded-xl border border-gray-200 p-10 text-center">
-                <div class="text-3xl mb-3">⚡</div>
-                <div class="text-sm font-medium text-gray-600 mb-1">Noch keine Automationsregeln</div>
-                <div class="text-xs text-gray-400 mb-4">Klicke auf "+ Neue Regel" um dein erstes Wenn-Dann zu erstellen.</div>
-                <button @click="showRuleModal = true"
-                        class="text-xs bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700">
-                    + Neue Regel erstellen
-                </button>
+        <!-- Empty state -->
+        <template x-if="!loading && rules.length === 0">
+            <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                <div class="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <h3 class="text-base font-semibold text-gray-700 mb-1">Noch keine Automationsregeln</h3>
+                <p class="text-sm text-gray-400 mb-5">Erstelle deine erste Wenn-Dann-Regel um Geräte automatisch zu steuern.</p>
+                <a href="/automations/new"
+                   class="inline-flex items-center gap-2 bg-purple-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-purple-700">
+                    + Erste Regel erstellen
+                </a>
             </div>
         </template>
 
         <template x-if="loading">
-            <div class="text-sm text-gray-400 text-center py-8">Regeln werden geladen…</div>
+            <div class="text-sm text-gray-400 text-center py-12">Regeln werden geladen…</div>
         </template>
     </div>
 
-    <!-- Link to schedules -->
-    <div class="mt-8 pt-6 border-t border-gray-200">
-        <p class="text-xs text-gray-400">
-            Zeitbasierte Zeitpläne (täglich/wöchentlich) findest du unter
-            <a href="/schedules" class="text-blue-500 hover:text-blue-700">Zeitpläne</a>.
-        </p>
+    <!-- Info footer -->
+    <div class="mt-8 pt-6 border-t border-gray-200 text-xs text-gray-400">
+        Zeitbasierte Zeitpläne (cron/intervall) →
+        <a href="/schedules" class="text-blue-500 hover:text-blue-700">Zeitpläne</a>
     </div>
 
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-function automationsPage() {
+function automationsIndex() {
     return {
         rules: [],
-        devices: [],
         loading: true,
-        saving: false,
-        showRuleModal: false,
-        newRule: {
-            name: '',
-            description: '',
-            trigger_type: 'time',
-            triggerTime: '20:00',
-            triggerDeviceId: '',
-            triggerState: 'on',
-            weatherCondition: 'Rain',
-            deviceId: '',
-            deviceAction: 'turn_on',
-        },
 
         async init() {
-            await Promise.all([this.loadRules(), this.loadDevices()]);
+            await this.loadRules();
             this.loading = false;
         },
 
@@ -225,51 +117,6 @@ function automationsPage() {
                 const r = await authFetch('/api/v1/automations');
                 if (r.ok) this.rules = await r.json();
             } catch(e) { console.warn('Rules load failed:', e); }
-        },
-
-        async loadDevices() {
-            try {
-                const r = await authFetch('/api/v1/devices');
-                if (r.ok) this.devices = await r.json();
-            } catch(e) {}
-        },
-
-        async createRule() {
-            this.saving = true;
-            try {
-                const rule = this.newRule;
-                let triggerConfig = {};
-                if (rule.trigger_type === 'time') {
-                    const [hour, minute] = (rule.triggerTime || '20:00').split(':');
-                    triggerConfig = { hour: parseInt(hour), minute: parseInt(minute) };
-                } else if (rule.trigger_type === 'device_state') {
-                    triggerConfig = { ain: rule.triggerDeviceId, state: rule.triggerState };
-                } else if (rule.trigger_type === 'weather') {
-                    triggerConfig = { condition: rule.weatherCondition };
-                }
-                const payload = {
-                    name: rule.name,
-                    description: rule.description || null,
-                    trigger_type: rule.trigger_type,
-                    trigger_config: triggerConfig,
-                    action_type: 'device_control',
-                    action_config: { ain: rule.deviceId, action: rule.deviceAction },
-                    is_enabled: true,
-                };
-                const r = await authFetch('/api/v1/automations', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-                if (r.ok) {
-                    await this.loadRules();
-                    this.showRuleModal = false;
-                    this.newRule = { name: '', description: '', trigger_type: 'time', triggerTime: '20:00', triggerDeviceId: '', triggerState: 'on', weatherCondition: 'Rain', deviceId: '', deviceAction: 'turn_on' };
-                } else {
-                    const err = await r.json().catch(() => ({}));
-                    alert('Fehler: ' + (err.detail || r.status));
-                }
-            } finally { this.saving = false; }
         },
 
         async toggleRule(rule) {
@@ -287,16 +134,36 @@ function automationsPage() {
             await this.loadRules();
         },
 
-        triggerLabel(type) {
-            return { time: 'Uhrzeit', device_state: 'Geraetestatus', weather: 'Wetter' }[type] || type;
+        triggerColor(type) {
+            return {
+                time: 'bg-blue-100 text-blue-600',
+                device_state: 'bg-purple-100 text-purple-600',
+                weather: 'bg-teal-100 text-teal-600',
+            }[type] || 'bg-gray-100 text-gray-500';
         },
 
-        actionLabel(cfg) {
-            if (!cfg) return '—';
-            const actionMap = { turn_on: 'Einschalten', turn_off: 'Ausschalten', toggle: 'Umschalten' };
-            const action = actionMap[cfg.action] || cfg.action || '?';
-            const device = this.devices.find(d => d.ain === cfg.ain);
-            return action + (device ? ' — ' + device.name : (cfg.ain ? ' — ' + cfg.ain : ''));
+        formatTrigger(rule) {
+            const cfg = rule.trigger_config || {};
+            if (rule.trigger_type === 'time') {
+                const h = String(cfg.hour ?? 0).padStart(2, '0');
+                const m = String(cfg.minute ?? 0).padStart(2, '0');
+                return 'taeglich ' + h + ':' + m + ' Uhr';
+            }
+            if (rule.trigger_type === 'device_state') {
+                const state = cfg.state === 'on' ? 'eingeschaltet' : 'ausgeschaltet';
+                return (cfg.ain || 'Geraet') + ' ' + state;
+            }
+            if (rule.trigger_type === 'weather') {
+                const cond = { Rain: 'Regen', Snow: 'Schnee', Clear: 'Sonnenschein', Clouds: 'Bewoelkt' };
+                return cond[cfg.condition] || cfg.condition || 'Wetter';
+            }
+            return rule.trigger_type;
+        },
+
+        formatAction(rule) {
+            const cfg = rule.action_config || {};
+            const actions = { turn_on: 'einschalten', turn_off: 'ausschalten', toggle: 'umschalten' };
+            return (cfg.ain || 'Geraet') + ' ' + (actions[cfg.action] || cfg.action || '?');
         },
 
         formatTime(iso) {

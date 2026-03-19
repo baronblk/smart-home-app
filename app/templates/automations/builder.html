@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+{% block title %}Neue Regel — smart-home-app{% endblock %}
+{% block page_title %}Regel erstellen{% endblock %}
+
+{% block header_actions %}
+<a href="/automations" class="text-xs text-gray-400 hover:text-gray-600">← Zurück</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl" x-data="automationBuilder()">
+
+    <!-- Step indicator -->
+    <div class="flex items-center gap-0 mb-8">
+        <template x-for="(label, i) in steps" :key="i">
+            <div class="flex items-center" :class="i < steps.length - 1 ? 'flex-1' : ''">
+                <div class="flex flex-col items-center">
+                    <div :class="{
+                            'bg-purple-600 text-white': currentStep === i + 1,
+                            'bg-green-500 text-white': currentStep > i + 1,
+                            'bg-gray-200 text-gray-400': currentStep < i + 1
+                         }"
+                         class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors">
+                        <template x-if="currentStep > i + 1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </template>
+                        <template x-if="currentStep <= i + 1">
+                            <span x-text="i + 1"></span>
+                        </template>
+                    </div>
+                    <span class="text-xs mt-1 whitespace-nowrap"
+                          :class="currentStep === i + 1 ? 'text-purple-700 font-medium' : 'text-gray-400'"
+                          x-text="label"></span>
+                </div>
+                <template x-if="i < steps.length - 1">
+                    <div class="flex-1 h-0.5 mx-2 mb-4"
+                         :class="currentStep > i + 1 ? 'bg-green-400' : 'bg-gray-200'"></div>
+                </template>
+            </div>
+        </template>
+    </div>
+
+    <!-- Step card -->
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+
+        <!-- Step 1: Auslöser -->
+        <div x-show="currentStep === 1">
+            <h2 class="text-base font-semibold text-gray-800 mb-1">Auslöser wählen</h2>
+            <p class="text-sm text-gray-400 mb-5">Wann soll die Regel ausgelöst werden?</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+                <button @click="form.trigger_type = 'time'"
+                        :class="form.trigger_type === 'time' ? 'border-purple-500 bg-purple-50 ring-1 ring-purple-500' : 'border-gray-200 hover:border-gray-300'"
+                        class="border-2 rounded-xl p-4 text-left transition-all">
+                    <div class="w-9 h-9 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mb-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div class="text-sm font-medium text-gray-800">Uhrzeit</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Täglich zu einer bestimmten Zeit</div>
+                </button>
+                <button @click="form.trigger_type = 'device_state'"
+                        :class="form.trigger_type === 'device_state' ? 'border-purple-500 bg-purple-50 ring-1 ring-purple-500' : 'border-gray-200 hover:border-gray-300'"
+                        class="border-2 rounded-xl p-4 text-left transition-all">
+                    <div class="w-9 h-9 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center mb-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div class="text-sm font-medium text-gray-800">Gerätestatus</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Wenn ein Gerät ein-/ausgeschaltet wird</div>
+                </button>
+                <button @click="form.trigger_type = 'weather'"
+                        :class="form.trigger_type === 'weather' ? 'border-purple-500 bg-purple-50 ring-1 ring-purple-500' : 'border-gray-200 hover:border-gray-300'"
+                        class="border-2 rounded-xl p-4 text-left transition-all">
+                    <div class="w-9 h-9 bg-teal-100 text-teal-600 rounded-lg flex items-center justify-center mb-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
+                        </svg>
+                    </div>
+                    <div class="text-sm font-medium text-gray-800">Wetter</div>
+                    <div class="text-xs text-gray-400 mt-0.5">Bei bestimmter Wetterbedingung</div>
+                </button>
+            </div>
+
+            <!-- Trigger config -->
+            <template x-if="form.trigger_type === 'time'">
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Uhrzeit</label>
+                    <input type="time" x-model="form.triggerTime"
+                           class="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                    <p class="text-xs text-gray-400 mt-2">Die Regel wird täglich zur gewählten Uhrzeit ausgeführt.</p>
+                </div>
+            </template>
+            <template x-if="form.trigger_type === 'device_state'">
+                <div class="bg-gray-50 rounded-xl p-4 space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Gerät</label>
+                        <select x-model="form.triggerDeviceAin"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <option value="">Gerät wählen...</option>
+                            <template x-for="d in devices" :key="d.id">
+                                <option :value="d.ain" x-text="d.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <div class="flex gap-3">
+                            <button @click="form.triggerState = 'on'"
+                                    :class="form.triggerState === 'on' ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600'"
+                                    class="flex-1 border-2 rounded-lg py-2 text-sm font-medium transition-all">
+                                Eingeschaltet
+                            </button>
+                            <button @click="form.triggerState = 'off'"
+                                    :class="form.triggerState === 'off' ? 'border-red-400 bg-red-50 text-red-700' : 'border-gray-200 text-gray-600'"
+                                    class="flex-1 border-2 rounded-lg py-2 text-sm font-medium transition-all">
+                                Ausgeschaltet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <template x-if="form.trigger_type === 'weather'">
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Wetterbedingung</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <template x-for="cond in weatherConditions" :key="cond.value">
+                            <button @click="form.weatherCondition = cond.value"
+                                    :class="form.weatherCondition === cond.value ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 text-gray-600'"
+                                    class="border-2 rounded-lg py-2 px-3 text-sm font-medium transition-all flex flex-col items-center gap-1">
+                                <span x-text="cond.emoji" class="text-xl"></span>
+                                <span x-text="cond.label" class="text-xs"></span>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Step 2: Bedingung (optional) -->
+        <div x-show="currentStep === 2">
+            <h2 class="text-base font-semibold text-gray-800 mb-1">Bedingung (optional)</h2>
+            <p class="text-sm text-gray-400 mb-5">Zusätzliche Bedingung, die erfüllt sein muss.</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                <button @click="form.conditionType = 'none'"
+                        :class="form.conditionType === 'none' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'"
+                        class="border-2 rounded-xl p-4 text-left transition-all">
+                    <div class="text-2xl mb-1">—</div>
+                    <div class="text-sm font-medium text-gray-700">Keine</div>
+                    <div class="text-xs text-gray-400">Immer ausführen</div>
+                </button>
+                <button @click="form.conditionType = 'time_range'"
+                        :class="form.conditionType === 'time_range' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'"
+                        class="border-2 rounded-xl p-4 text-left transition-all">
+                    <div class="text-2xl mb-1">🕐</div>
+                    <div class="text-sm font-medium text-gray-700">Zeitfenster</div>
+                    <div class="text-xs text-gray-400">Nur zwischen Uhrzeiten</div>
+                </button>
+                <button @click="form.conditionType = 'weekday'"
+                        :class="form.conditionType === 'weekday' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'"
+                        class="border-2 rounded-xl p-4 text-left transition-all">
+                    <div class="text-2xl mb-1">📅</div>
+                    <div class="text-sm font-medium text-gray-700">Wochentag</div>
+                    <div class="text-xs text-gray-400">Nur an bestimmten Tagen</div>
+                </button>
+            </div>
+
+            <template x-if="form.conditionType === 'time_range'">
+                <div class="bg-gray-50 rounded-xl p-4 grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Von</label>
+                        <input type="time" x-model="form.condTimeFrom"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Bis</label>
+                        <input type="time" x-model="form.condTimeTo"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                    </div>
+                </div>
+            </template>
+            <template x-if="form.conditionType === 'weekday'">
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Wochentage</label>
+                    <div class="flex gap-2 flex-wrap">
+                        <template x-for="day in weekdays" :key="day.value">
+                            <button @click="toggleWeekday(day.value)"
+                                    :class="form.condWeekdays.includes(day.value) ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-600 border-gray-200'"
+                                    class="border-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-all"
+                                    x-text="day.label">
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Step 3: Aktion -->
+        <div x-show="currentStep === 3">
+            <h2 class="text-base font-semibold text-gray-800 mb-1">Aktion festlegen</h2>
+            <p class="text-sm text-gray-400 mb-5">Was soll passieren, wenn die Regel ausgelöst wird?</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Gerät</label>
+                    <select x-model="form.actionDeviceAin"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">Gerät wählen...</option>
+                        <template x-for="d in devices" :key="d.id">
+                            <option :value="d.ain" x-text="d.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Aktion</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button @click="form.actionType = 'turn_on'"
+                                :class="form.actionType === 'turn_on' ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600'"
+                                class="border-2 rounded-xl p-3 text-sm font-medium transition-all flex flex-col items-center gap-1">
+                            <span class="text-xl">💡</span>
+                            <span>Einschalten</span>
+                        </button>
+                        <button @click="form.actionType = 'turn_off'"
+                                :class="form.actionType === 'turn_off' ? 'border-red-400 bg-red-50 text-red-700' : 'border-gray-200 text-gray-600'"
+                                class="border-2 rounded-xl p-3 text-sm font-medium transition-all flex flex-col items-center gap-1">
+                            <span class="text-xl">🌙</span>
+                            <span>Ausschalten</span>
+                        </button>
+                        <button @click="form.actionType = 'toggle'"
+                                :class="form.actionType === 'toggle' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600'"
+                                class="border-2 rounded-xl p-3 text-sm font-medium transition-all flex flex-col items-center gap-1">
+                            <span class="text-xl">🔄</span>
+                            <span>Umschalten</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Name & Speichern -->
+        <div x-show="currentStep === 4">
+            <h2 class="text-base font-semibold text-gray-800 mb-1">Regel benennen & speichern</h2>
+            <p class="text-sm text-gray-400 mb-5">Gib der Regel einen Namen und überprüfe die Konfiguration.</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input type="text" x-model="form.name"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                           placeholder="z.B. Abends Licht einschalten" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Beschreibung (optional)</label>
+                    <input type="text" x-model="form.description"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                           placeholder="Kurze Beschreibung..." />
+                </div>
+
+                <!-- Summary -->
+                <div class="bg-purple-50 border border-purple-100 rounded-xl p-4 space-y-2 text-sm">
+                    <div class="font-medium text-purple-800 mb-2">Zusammenfassung</div>
+                    <div class="flex gap-2 text-gray-700">
+                        <span class="text-gray-400 w-20 flex-shrink-0">WENN</span>
+                        <span class="font-medium" x-text="summaryTrigger()"></span>
+                    </div>
+                    <template x-if="form.conditionType !== 'none'">
+                        <div class="flex gap-2 text-gray-700">
+                            <span class="text-gray-400 w-20 flex-shrink-0">UND</span>
+                            <span class="font-medium" x-text="summaryCondition()"></span>
+                        </div>
+                    </template>
+                    <div class="flex gap-2 text-gray-700">
+                        <span class="text-gray-400 w-20 flex-shrink-0">DANN</span>
+                        <span class="font-medium" x-text="summaryAction()"></span>
+                    </div>
+                </div>
+
+                <div x-show="saveError" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2" x-text="saveError"></div>
+            </div>
+        </div>
+
+        <!-- Navigation buttons -->
+        <div class="flex justify-between mt-6 pt-4 border-t border-gray-100">
+            <button @click="prevStep()"
+                    x-show="currentStep > 1"
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">
+                ← Zurück
+            </button>
+            <div x-show="currentStep === 1"></div>
+
+            <div class="flex gap-3">
+                <template x-if="currentStep < 4">
+                    <button @click="nextStep()"
+                            :disabled="!canProceed()"
+                            class="px-5 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-purple-300 disabled:cursor-not-allowed font-medium">
+                        Weiter →
+                    </button>
+                </template>
+                <template x-if="currentStep === 4">
+                    <button @click="save()"
+                            :disabled="saving || !form.name.trim()"
+                            class="px-5 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-purple-300 disabled:cursor-not-allowed font-medium">
+                        <span x-text="saving ? 'Speichere...' : 'Regel erstellen'"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function automationBuilder() {
+    return {
+        currentStep: 1,
+        steps: ['Auslöser', 'Bedingung', 'Aktion', 'Speichern'],
+        devices: [],
+        saving: false,
+        saveError: '',
+
+        weatherConditions: [
+            { value: 'Rain', label: 'Regen', emoji: '🌧️' },
+            { value: 'Snow', label: 'Schnee', emoji: '❄️' },
+            { value: 'Clear', label: 'Klar', emoji: '☀️' },
+            { value: 'Clouds', label: 'Bewoelkt', emoji: '☁️' },
+        ],
+        weekdays: [
+            { value: 0, label: 'Mo' }, { value: 1, label: 'Di' }, { value: 2, label: 'Mi' },
+            { value: 3, label: 'Do' }, { value: 4, label: 'Fr' }, { value: 5, label: 'Sa' }, { value: 6, label: 'So' },
+        ],
+
+        form: {
+            name: '',
+            description: '',
+            trigger_type: 'time',
+            triggerTime: '20:00',
+            triggerDeviceAin: '',
+            triggerState: 'on',
+            weatherCondition: 'Rain',
+            conditionType: 'none',
+            condTimeFrom: '06:00',
+            condTimeTo: '22:00',
+            condWeekdays: [],
+            actionDeviceAin: '',
+            actionType: 'turn_on',
+        },
+
+        async init() {
+            try {
+                const r = await authFetch('/api/v1/devices');
+                if (r.ok) this.devices = await r.json();
+            } catch(e) {}
+        },
+
+        toggleWeekday(val) {
+            const idx = this.form.condWeekdays.indexOf(val);
+            if (idx >= 0) this.form.condWeekdays.splice(idx, 1);
+            else this.form.condWeekdays.push(val);
+        },
+
+        canProceed() {
+            if (this.currentStep === 1) {
+                if (this.form.trigger_type === 'device_state') return !!this.form.triggerDeviceAin;
+                return true;
+            }
+            if (this.currentStep === 3) return !!this.form.actionDeviceAin;
+            return true;
+        },
+
+        nextStep() {
+            if (this.canProceed() && this.currentStep < 4) this.currentStep++;
+        },
+
+        prevStep() {
+            if (this.currentStep > 1) this.currentStep--;
+        },
+
+        buildTriggerConfig() {
+            const f = this.form;
+            if (f.trigger_type === 'time') {
+                const [h, m] = (f.triggerTime || '20:00').split(':');
+                return { hour: parseInt(h), minute: parseInt(m) };
+            }
+            if (f.trigger_type === 'device_state') {
+                return { ain: f.triggerDeviceAin, state: f.triggerState };
+            }
+            if (f.trigger_type === 'weather') {
+                return { condition: f.weatherCondition };
+            }
+            return {};
+        },
+
+        buildConditionConfig() {
+            const f = this.form;
+            if (f.conditionType === 'none') return null;
+            if (f.conditionType === 'time_range') {
+                return { type: 'time_range', from: f.condTimeFrom, to: f.condTimeTo };
+            }
+            if (f.conditionType === 'weekday') {
+                return { type: 'weekday', days: [...f.condWeekdays] };
+            }
+            return null;
+        },
+
+        summaryTrigger() {
+            const f = this.form;
+            if (f.trigger_type === 'time') {
+                return 'taeglich um ' + f.triggerTime + ' Uhr';
+            }
+            if (f.trigger_type === 'device_state') {
+                const d = this.devices.find(x => x.ain === f.triggerDeviceAin);
+                const name = d ? d.name : f.triggerDeviceAin || 'Geraet';
+                return name + ' wird ' + (f.triggerState === 'on' ? 'eingeschaltet' : 'ausgeschaltet');
+            }
+            if (f.trigger_type === 'weather') {
+                const cond = this.weatherConditions.find(c => c.value === f.weatherCondition);
+                return 'Wetter: ' + (cond ? cond.label : f.weatherCondition);
+            }
+            return '—';
+        },
+
+        summaryCondition() {
+            const f = this.form;
+            if (f.conditionType === 'time_range') return 'zwischen ' + f.condTimeFrom + ' und ' + f.condTimeTo + ' Uhr';
+            if (f.conditionType === 'weekday') {
+                const labels = this.weekdays.filter(d => f.condWeekdays.includes(d.value)).map(d => d.label);
+                return labels.length > 0 ? labels.join(', ') : 'Kein Tag gewaehlt';
+            }
+            return '';
+        },
+
+        summaryAction() {
+            const f = this.form;
+            const d = this.devices.find(x => x.ain === f.actionDeviceAin);
+            const name = d ? d.name : f.actionDeviceAin || 'Geraet';
+            const actions = { turn_on: 'einschalten', turn_off: 'ausschalten', toggle: 'umschalten' };
+            return name + ' ' + (actions[f.actionType] || f.actionType);
+        },
+
+        async save() {
+            if (!this.form.name.trim()) return;
+            this.saving = true;
+            this.saveError = '';
+            try {
+                const payload = {
+                    name: this.form.name.trim(),
+                    description: this.form.description.trim() || null,
+                    trigger_type: this.form.trigger_type,
+                    trigger_config: this.buildTriggerConfig(),
+                    condition_config: this.buildConditionConfig(),
+                    action_type: 'device_control',
+                    action_config: { ain: this.form.actionDeviceAin, action: this.form.actionType },
+                    is_enabled: true,
+                };
+                const r = await authFetch('/api/v1/automations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                if (r.ok) {
+                    window.location.href = '/automations';
+                } else {
+                    const err = await r.json().catch(() => ({}));
+                    this.saveError = 'Fehler: ' + (err.detail || r.status);
+                }
+            } finally { this.saving = false; }
+        },
+    };
+}
+</script>
+{% endblock %}
