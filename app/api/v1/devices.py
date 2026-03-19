@@ -21,6 +21,7 @@ from app.auth.rbac import Role, require_role
 from app.dependencies import get_db, get_provider
 from app.devices.schemas import (
     DeviceRead,
+    DeviceSnapshotRead,
     DeviceStateRead,
     DeviceUpdate,
     DiscoveryResult,
@@ -115,3 +116,15 @@ async def set_brightness(
     service: DeviceService = Depends(_get_service),
 ) -> None:
     await service.set_brightness(ain, data.level)
+
+
+@router.get("/{ain}/snapshots", response_model=list[DeviceSnapshotRead])
+async def get_device_snapshots(
+    ain: str,
+    period: str = "24h",
+    current_user: User = Depends(require_role(Role.VIEWER)),
+    service: DeviceService = Depends(_get_service),
+) -> list[Any]:
+    """Get historical state snapshots for charts. Periods: 24h, 7d, 30d."""
+    snapshots = await service.get_device_snapshots(ain, period)
+    return list(snapshots)

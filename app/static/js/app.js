@@ -134,4 +134,26 @@ document.addEventListener("alpine:init", () => {
             }
         },
     }));
+
+    // ============================================================
+    // Alpine.js: Brightness control component
+    // ============================================================
+    Alpine.data("brightnessControl", (ain, currentLevel) => ({
+        ain,
+        level: currentLevel,
+        saving: false,
+
+        async setBrightness() {
+            this.saving = true;
+            try {
+                await authFetch(`/api/v1/devices/${this.ain}/brightness`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ level: this.level }),
+                });
+            } finally {
+                this.saving = false;
+            }
+        },
+    }));
 });

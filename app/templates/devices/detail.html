@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ device.name }} — smart-home-app{% endblock %}
+{% block page_title %}{{ device.name }}{% endblock %}
+
+{% block header_actions %}
+<a href="/devices" class="text-xs text-gray-400 hover:text-gray-600">← Alle Geräte</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="max-w-5xl space-y-6">
+
+    <!-- Device Header -->
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <div class="flex items-start justify-between">
+            <div>
+                <div class="flex items-center gap-3 mb-2">
+                    {% if device.device_type == "thermostat" %}
+                    <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                    </div>
+                    {% elif device.device_type == "light" %}
+                    <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                    </div>
+                    {% else %}
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800">{{ device.name }}</h2>
+                        <p class="text-sm text-gray-400">AIN: {{ device.ain }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="badge {% if device.last_seen %}badge-online{% else %}badge-offline{% endif %}">
+                    {{ "Online" if device.last_seen else "Offline" }}
+                </span>
+                <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded capitalize">{{ device.device_type }}</span>
+            </div>
+        </div>
+
+        <!-- Metadata -->
+        <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+                <span class="text-gray-400 block">Standort</span>
+                <span class="font-medium text-gray-700">{{ device.location or "—" }}</span>
+            </div>
+            <div>
+                <span class="text-gray-400 block">Firmware</span>
+                <span class="font-medium text-gray-700">{{ device.firmware_version or "—" }}</span>
+            </div>
+            <div>
+                <span class="text-gray-400 block">Capabilities</span>
+                <span class="font-medium text-gray-700">{{ device.capabilities | join(", ") }}</span>
+            </div>
+            <div>
+                <span class="text-gray-400 block">Zuletzt gesehen</span>
+                <span class="font-medium text-gray-700">
+                    {% if device.last_seen %}
+                    {{ device.last_seen.strftime("%d.%m.%Y %H:%M") }}
+                    {% else %}—{% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live State Panel (HTMX refreshed) -->
+    <div
+        id="device-state-panel"
+        hx-get="/partials/devices/{{ device.ain }}/state"
+        hx-trigger="load, every 10s"
+        hx-swap="innerHTML"
+    >
+        {% include "partials/device_state_panel.html" %}
+    </div>
+
+    <!-- Chart Placeholder (WP4) -->
+    <div class="bg-white rounded-xl border border-gray-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-semibold text-gray-700">Verlauf</h3>
+            <div class="flex gap-2 text-xs" x-data="{ period: '24h' }">
+                <button @click="period='24h'" :class="period==='24h' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-3 py-1 rounded-lg">24h</button>
+                <button @click="period='7d'" :class="period==='7d' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-3 py-1 rounded-lg">7 Tage</button>
+                <button @click="period='30d'" :class="period==='30d' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'" class="px-3 py-1 rounded-lg">30 Tage</button>
+            </div>
+        </div>
+        <div id="chart-container" class="h-64 flex items-center justify-center text-sm text-gray-400">
+            <p>Charts werden in einem kommenden Update verfügbar (Chart.js-Integration).</p>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

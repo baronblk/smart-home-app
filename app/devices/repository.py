@@ -96,3 +96,19 @@ class DeviceRepository:
             query = query.where(DeviceStateSnapshot.recorded_at >= since)
         result = await self._session.execute(query)
         return result.scalars().all()
+
+    async def get_snapshots_for_chart(
+        self, ain: str, since: datetime, limit: int = 2000
+    ) -> Sequence[DeviceStateSnapshot]:
+        """Get snapshots ordered ASC (chronological) for chart rendering."""
+        query = (
+            select(DeviceStateSnapshot)
+            .where(
+                DeviceStateSnapshot.ain == ain,
+                DeviceStateSnapshot.recorded_at >= since,
+            )
+            .order_by(DeviceStateSnapshot.recorded_at.asc())
+            .limit(limit)
+        )
+        result = await self._session.execute(query)
+        return result.scalars().all()

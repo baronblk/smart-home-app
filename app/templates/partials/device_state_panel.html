@@ -1,0 +1,86 @@
+<!-- Device state panel — HTMX partial, refreshed every 10s -->
+<div class="bg-white rounded-xl border border-gray-200 p-6">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-semibold text-gray-700">Aktueller Status</h3>
+        <span class="text-xs text-gray-400">Live-Aktualisierung alle 10s</span>
+    </div>
+
+    {% if state %}
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+
+        <!-- Switch state -->
+        {% if state.is_on is not none %}
+        <div class="text-center" x-data="deviceToggle('{{ device.ain }}', {{ 'true' if state.is_on else 'false' }})">
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-2">Schalter</div>
+            <div class="flex items-center justify-center gap-3">
+                <span class="text-lg font-bold" :class="isOn ? 'text-green-600' : 'text-gray-400'" x-text="isOn ? 'Ein' : 'Aus'"></span>
+                <label class="toggle" :class="{ 'opacity-50': loading }">
+                    <input type="checkbox" :checked="isOn" @change="toggle()" :disabled="loading" />
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Temperature -->
+        {% if state.temperature_celsius is not none %}
+        <div class="text-center">
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-2">Temperatur</div>
+            <div class="text-2xl font-bold text-orange-500">{{ "%.1f"|format(state.temperature_celsius) }}°C</div>
+        </div>
+        {% endif %}
+
+        <!-- Target temperature -->
+        {% if state.target_temperature is not none %}
+        <div class="text-center" x-data="tempControl('{{ device.ain }}', {{ state.target_temperature }})">
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-2">Soll-Temperatur</div>
+            <div class="flex items-center justify-center gap-2">
+                <button @click="temperature = Math.max(8, temperature - 0.5); setTemperature()" :disabled="saving"
+                        class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold flex items-center justify-center">−</button>
+                <span class="text-2xl font-bold text-orange-600" x-text="temperature.toFixed(1) + '°C'"></span>
+                <button @click="temperature = Math.min(28, temperature + 0.5); setTemperature()" :disabled="saving"
+                        class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold flex items-center justify-center">+</button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Power -->
+        {% if state.power_watts is not none %}
+        <div class="text-center">
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-2">Leistung</div>
+            <div class="text-2xl font-bold text-blue-600">{{ "%.1f"|format(state.power_watts) }} W</div>
+        </div>
+        {% endif %}
+
+        <!-- Energy -->
+        {% if state.energy_wh is not none %}
+        <div class="text-center">
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-2">Verbrauch</div>
+            <div class="text-2xl font-bold text-purple-600">
+                {% if state.energy_wh > 1000 %}
+                {{ "%.2f"|format(state.energy_wh / 1000) }} kWh
+                {% else %}
+                {{ "%.0f"|format(state.energy_wh) }} Wh
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Brightness -->
+        {% if state.brightness_level is not none %}
+        <div class="text-center" x-data="brightnessControl('{{ device.ain }}', {{ state.brightness_level }})">
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-2">Helligkeit</div>
+            <div class="text-2xl font-bold text-yellow-500 mb-2" x-text="Math.round(level / 255 * 100) + '%'"></div>
+            <input type="range" min="0" max="255" x-model.number="level" @change="setBrightness()"
+                   :disabled="saving"
+                   class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-500" />
+        </div>
+        {% endif %}
+
+    </div>
+    {% else %}
+    <div class="text-sm text-gray-400 py-4 text-center">
+        Gerätestatus konnte nicht abgerufen werden. Das Gerät ist möglicherweise offline.
+    </div>
+    {% endif %}
+</div>

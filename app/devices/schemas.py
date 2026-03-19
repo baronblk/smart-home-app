@@ -59,6 +59,20 @@ class SetBrightnessRequest(BaseModel):
     level: int = Field(..., ge=0, le=255, description="Brightness level (0=off, 255=max)")
 
 
+class DeviceSnapshotRead(BaseModel):
+    """Snapshot data point for charts and history."""
+
+    recorded_at: datetime
+    is_on: bool | None
+    temperature_celsius: float | None
+    target_temperature: float | None
+    power_watts: float | None
+    energy_wh: float | None
+    brightness_level: int | None
+
+    model_config = {"from_attributes": True}
+
+
 class DiscoveryResult(BaseModel):
     discovered: int
     added: int

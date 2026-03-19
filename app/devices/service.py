@@ -4,7 +4,7 @@ Device service — business logic for the Device domain.
 
 import uuid
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -104,6 +104,23 @@ class DeviceService:
 
     async def set_brightness(self, ain: str, level: int) -> None:
         await self._provider.set_dimmer(ain, level)
+
+    async def get_device_snapshots(
+        self, ain: str, period: str = "24h"
+    ) -> Sequence[DeviceStateSnapshot]:
+        """Get historical snapshots for chart rendering."""
+        period_map = {
+            "24h": timedelta(hours=24),
+            "7d": timedelta(days=7),
+            "30d": timedelta(days=30),
+        }
+        delta = period_map.get(period, timedelta(hours=24))
+        since = datetime.now(UTC) - delta
+        return await self._repo.get_snapshots_for_chart(ain, since)
+
+    async def get_latest_snapshot(self, ain: str) -> DeviceStateSnapshot | None:
+        """Get the most recent snapshot for a device."""
+        return await self._repo.get_latest_snapshot(ain)
 
     async def poll_and_snapshot_all(self) -> int:
         """
