@@ -4,6 +4,7 @@ API v1 router — aggregates all v1 endpoint modules.
 
 from fastapi import APIRouter
 
+from app.api.v1.analytics import router as analytics_router
 from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.automations import router as automations_router
@@ -26,3 +27,4 @@ router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
 router.include_router(audit_router, prefix="/audit", tags=["audit"])
 router.include_router(settings_router, prefix="/settings", tags=["settings"])
 router.include_router(weather_router, prefix="/weather", tags=["weather"])
+router.include_router(analytics_router, prefix="/analytics", tags=["analytics"])

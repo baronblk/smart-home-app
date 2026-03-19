@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}Analysen — smart-home-app{% endblock %}
+{% block page_title %}Analysen{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="analyticsPage()">
+
+    <!-- Power Chart -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Stromverbrauch</h3>
+            <div class="flex gap-1">
+                <button @click="loadPower(24)" :class="powerHours===24?'bg-blue-600 text-white':'bg-gray-100 text-gray-600'" class="text-xs px-2.5 py-1 rounded-lg font-medium">24h</button>
+                <button @click="loadPower(48)" :class="powerHours===48?'bg-blue-600 text-white':'bg-gray-100 text-gray-600'" class="text-xs px-2.5 py-1 rounded-lg font-medium">48h</button>
+                <button @click="loadPower(168)" :class="powerHours===168?'bg-blue-600 text-white':'bg-gray-100 text-gray-600'" class="text-xs px-2.5 py-1 rounded-lg font-medium">7d</button>
+            </div>
+        </div>
+        <div class="relative h-52">
+            <canvas id="powerChart"></canvas>
+            <div x-show="powerEmpty" class="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
+                Noch keine Verbrauchsdaten vorhanden.
+            </div>
+        </div>
+    </div>
+
+    <!-- Temperature Chart -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Temperaturverlauf</h3>
+                <select x-model="tempAin" @change="loadTemp(tempHours)"
+                        class="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">Alle Thermostaten</option>
+                    <template x-for="d in thermostatDevices" :key="d.ain">
+                        <option :value="d.ain" x-text="d.name"></option>
+                    </template>
+                </select>
+            </div>
+            <div class="flex gap-1">
+                <button @click="loadTemp(24)" :class="tempHours===24?'bg-orange-500 text-white':'bg-gray-100 text-gray-600'" class="text-xs px-2.5 py-1 rounded-lg font-medium">24h</button>
+                <button @click="loadTemp(48)" :class="tempHours===48?'bg-orange-500 text-white':'bg-gray-100 text-gray-600'" class="text-xs px-2.5 py-1 rounded-lg font-medium">48h</button>
+                <button @click="loadTemp(168)" :class="tempHours===168?'bg-orange-500 text-white':'bg-gray-100 text-gray-600'" class="text-xs px-2.5 py-1 rounded-lg font-medium">7d</button>
+            </div>
+        </div>
+        <div class="relative h-52">
+            <canvas id="tempChart"></canvas>
+            <div x-show="tempEmpty" class="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
+                Noch keine Temperaturdaten vorhanden.
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Consumers Bar Chart -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Top Verbraucher (Ø Watt)</h3>
+            <div class="flex gap-1">
+                <button @click="loadConsumers(24)" :class="consumersHours===24?'bg-yellow-500 text-white':'bg-gray-100 text-gray-600'" class="text-xs px-2.5 py-1 rounded-lg font-medium">24h</button>
+                <button @click="loadConsumers(168)" :class="consumersHours===168?'bg-yellow-500 text-white':'bg-gray-100 text-gray-600'" class="text-xs px-2.5 py-1 rounded-lg font-medium">7d</button>
+            </div>
+        </div>
+        <div class="relative h-52">
+            <canvas id="consumersChart"></canvas>
+            <div x-show="consumersEmpty" class="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
+                Noch keine Verbrauchsdaten vorhanden.
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function analyticsPage() {
+    return {
+        powerHours: 24,
+        tempHours: 24,
+        consumersHours: 24,
+        tempAin: '',
+        thermostatDevices: [],
+        powerEmpty: false,
+        tempEmpty: false,
+        consumersEmpty: false,
+        powerChart: null,
+        tempChart: null,
+        consumersChart: null,
+
+        async init() {
+            await this.loadDevices();
+            await Promise.all([
+                this.loadPower(24),
+                this.loadTemp(24),
+                this.loadConsumers(24),
+            ]);
+        },
+
+        async loadDevices() {
+            try {
+                const r = await authFetch('/api/v1/devices');
+                if (r.ok) {
+                    const devices = await r.json();
+                    // Filter to devices that likely have temperature (thermostats)
+                    this.thermostatDevices = devices.filter(d =>
+                        d.device_type === 'thermostat' || d.name.toLowerCase().includes('heiz') ||
+                        d.name.toLowerCase().includes('thermostat') || d.name.toLowerCase().includes('comet')
+                    );
+                    if (this.thermostatDevices.length === 0) {
+                        // Fall back to all devices
+                        this.thermostatDevices = devices;
+                    }
+                }
+            } catch(e) {}
+        },
+
+        async loadPower(hours) {
+            this.powerHours = hours;
+            try {
+                const r = await authFetch(`/api/v1/analytics/power/history?hours=${hours}`);
+                if (!r.ok) return;
+                const data = await r.json();
+                this.powerEmpty = data.length === 0;
+                const labels = data.map(d => {
+                    const dt = new Date(d.hour);
+                    return dt.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                });
+                const values = data.map(d => d.total_watts);
+                this.renderLineChart('powerChart', labels, values, 'Watt', '#3b82f6', (c) => { this.powerChart = c; }, this.powerChart);
+            } catch(e) { console.warn('Power history failed:', e); }
+        },
+
+        async loadTemp(hours) {
+            this.tempHours = hours;
+            try {
+                let url = `/api/v1/analytics/temperature/history?hours=${hours}`;
+                if (this.tempAin) url += `&ain=${encodeURIComponent(this.tempAin)}`;
+                const r = await authFetch(url);
+                if (!r.ok) return;
+                const data = await r.json();
+                this.tempEmpty = data.length === 0;
+                const labels = data.map(d => {
+                    const dt = new Date(d.hour);
+                    return dt.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                });
+                const values = data.map(d => d.avg_temp);
+                this.renderLineChart('tempChart', labels, values, '°C', '#f97316', (c) => { this.tempChart = c; }, this.tempChart);
+            } catch(e) { console.warn('Temp history failed:', e); }
+        },
+
+        async loadConsumers(hours) {
+            this.consumersHours = hours;
+            try {
+                const r = await authFetch(`/api/v1/analytics/devices/top-consumers?hours=${hours}&limit=8`);
+                if (!r.ok) return;
+                const data = await r.json();
+                this.consumersEmpty = data.length === 0;
+                const labels = data.map(d => d.name);
+                const values = data.map(d => d.avg_watts);
+                if (this.consumersChart) { this.consumersChart.destroy(); this.consumersChart = null; }
+                const ctx = document.getElementById('consumersChart');
+                if (!ctx || typeof Chart === 'undefined') return;
+                this.consumersChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Ø Watt',
+                            data: values,
+                            backgroundColor: 'rgba(234, 179, 8, 0.7)',
+                            borderColor: '#eab308',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                        }],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, ticks: { callback: v => v + ' W' } },
+                            x: { ticks: { maxRotation: 30, font: { size: 10 } } },
+                        },
+                    },
+                });
+            } catch(e) { console.warn('Top consumers failed:', e); }
+        },
+
+        renderLineChart(canvasId, labels, values, unit, color, setRef, existing) {
+            if (existing) { existing.destroy(); }
+            const ctx = document.getElementById(canvasId);
+            if (!ctx || typeof Chart === 'undefined') return;
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: unit,
+                        data: values,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        pointRadius: labels.length > 48 ? 0 : 3,
+                        fill: true,
+                        tension: 0.3,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { ticks: { callback: v => v + ' ' + unit } },
+                        x: { ticks: { maxRotation: 30, maxTicksLimit: 12, font: { size: 10 } } },
+                    },
+                },
+            });
+            setRef(chart);
+        },
+    };
+}
+</script>
+{% endblock %}

@@ -14,6 +14,9 @@
     <!-- Alpine.js for lightweight client-side reactivity -->
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
+
     <!-- Custom styles -->
     <link rel="stylesheet" href="/static/css/app.css" />
 
@@ -48,6 +51,9 @@
                 </a>
                 <a href="/groups" class="nav-link {% if '/groups' in request.url.path %}nav-link-active{% endif %}">
                     Gruppen
+                </a>
+                <a href="/analytics" class="nav-link {% if '/analytics' in request.url.path %}nav-link-active{% endif %}">
+                    Analysen
                 </a>
                 <a href="/schedules" class="nav-link {% if '/schedules' in request.url.path %}nav-link-active{% endif %}">
                     Zeitpläne

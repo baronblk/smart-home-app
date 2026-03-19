@@ -89,6 +89,11 @@ async def audit_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("audit/index.html", {"request": request})
 
 
+@router.get("/analytics", response_class=HTMLResponse)
+async def analytics_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("analytics/index.html", {"request": request})
+
+
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("auth/login.html", {"request": request})
