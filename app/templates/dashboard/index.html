@@ -85,18 +85,159 @@
         </div>
     </div>
 
-    <!-- Device Grid -->
-    <div>
-        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Geräte</h3>
-        <div
-            id="device-grid"
-            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-            hx-get="/partials/devices"
-            hx-trigger="load, every 30s"
-            hx-swap="innerHTML"
-        >
-            <div class="col-span-full text-sm text-gray-400">Geräte werden geladen...</div>
+    <!-- Device Grid with Groups and Drag & Drop -->
+    <div x-data="deviceGrid()">
+        <!-- Group tabs / filter -->
+        <div class="flex items-center gap-2 mb-4 flex-wrap">
+            <button @click="activeGroup = null"
+                    :class="activeGroup === null ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 border border-gray-200'"
+                    class="text-xs px-3 py-1.5 rounded-lg font-medium">
+                Alle
+            </button>
+            <button @click="activeGroup = 'ungrouped'"
+                    :class="activeGroup === 'ungrouped' ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 border border-gray-200'"
+                    class="text-xs px-3 py-1.5 rounded-lg font-medium">
+                Ohne Gruppe
+            </button>
+            <template x-for="group in groups" :key="group.id">
+                <button @click="activeGroup = group.id"
+                        :class="activeGroup === group.id ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 border border-gray-200'"
+                        class="text-xs px-3 py-1.5 rounded-lg font-medium flex items-center gap-1">
+                    <span x-text="group.icon || '📁'"></span>
+                    <span x-text="group.name"></span>
+                </button>
+            </template>
+            <div class="ml-auto flex items-center gap-2">
+                <button @click="toggleEditMode()"
+                        :class="editMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border border-gray-200'"
+                        class="text-xs px-3 py-1.5 rounded-lg font-medium">
+                    <span x-text="editMode ? 'Fertig' : 'Anordnen'"></span>
+                </button>
+            </div>
         </div>
+
+        <!-- Edit mode hint -->
+        <div x-show="editMode" x-transition class="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 mb-4 text-xs text-blue-700">
+            Karten ziehen zum Neu-Anordnen. Klicke "Fertig" um zu speichern.
+        </div>
+
+        <!-- Grouped sections -->
+        <template x-if="activeGroup === null || activeGroup !== 'ungrouped'">
+            <div>
+                <!-- Groups with their devices -->
+                <template x-for="group in visibleGroups()" :key="group.id">
+                    <div class="mb-6">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+                            <span x-text="group.icon || '📁'"></span>
+                            <span x-text="group.name"></span>
+                            <span class="text-xs font-normal text-gray-400" x-text="'(' + devicesInGroup(group).length + ')'"></span>
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                             :id="'group-' + group.id"
+                             x-init="initSortable($el, group.id)">
+                            <template x-for="device in devicesInGroup(group)" :key="device.id">
+                                <div :data-id="device.id" class="bg-white rounded-xl border border-gray-200 p-4 relative"
+                                     :class="editMode ? 'cursor-grab active:cursor-grabbing ring-2 ring-blue-200' : ''">
+                                    <div class="flex items-start justify-between mb-3">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <div :class="deviceIconClass(device)" class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                                </svg>
+                                            </div>
+                                            <span class="text-sm font-medium text-gray-800 truncate" x-text="device.name"></span>
+                                        </div>
+                                        <span class="badge badge-online text-xs flex-shrink-0">Online</span>
+                                    </div>
+                                    <a :href="'/devices/' + device.ain" class="text-xs text-blue-500 hover:text-blue-700">Details &rarr;</a>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Ungrouped devices section -->
+                <template x-if="ungroupedDevices().length > 0 && activeGroup === null">
+                    <div class="mb-6">
+                        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                            Geräte
+                            <span class="text-xs font-normal text-gray-400" x-text="'(' + ungroupedDevices().length + ')'"></span>
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                             id="ungrouped-devices"
+                             x-init="initSortable($el, null)">
+                            <template x-for="device in ungroupedDevices()" :key="device.id">
+                                <div :data-id="device.id" class="bg-white rounded-xl border border-gray-200 p-4"
+                                     :class="editMode ? 'cursor-grab active:cursor-grabbing ring-2 ring-blue-200' : ''">
+                                    <div class="flex items-start justify-between mb-3">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <div :class="deviceIconClass(device)" class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                                </svg>
+                                            </div>
+                                            <span class="text-sm font-medium text-gray-800 truncate" x-text="device.name"></span>
+                                        </div>
+                                        <span class="badge badge-online text-xs flex-shrink-0">Online</span>
+                                    </div>
+                                    <a :href="'/devices/' + device.ain" class="text-xs text-blue-500 hover:text-blue-700">Details &rarr;</a>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </template>
+
+        <!-- Single group view (when a group filter is active) -->
+        <template x-if="activeGroup && activeGroup !== null && activeGroup !== 'ungrouped'">
+            <div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                     :id="'group-filtered-' + activeGroup"
+                     x-effect="if(activeGroup) $nextTick(() => initSortable($el, activeGroup))">
+                    <template x-for="device in devicesInGroupById(activeGroup)" :key="device.id">
+                        <div :data-id="device.id" class="bg-white rounded-xl border border-gray-200 p-4"
+                             :class="editMode ? 'cursor-grab ring-2 ring-blue-200' : ''">
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <div :class="deviceIconClass(device)" class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-800 truncate" x-text="device.name"></span>
+                                </div>
+                            </div>
+                            <a :href="'/devices/' + device.ain" class="text-xs text-blue-500 hover:text-blue-700">Details &rarr;</a>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+
+        <!-- Ungrouped filter view -->
+        <template x-if="activeGroup === 'ungrouped'">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                 id="ungrouped-filtered"
+                 x-init="initSortable($el, null)">
+                <template x-for="device in ungroupedDevices()" :key="device.id">
+                    <div :data-id="device.id" class="bg-white rounded-xl border border-gray-200 p-4"
+                         :class="editMode ? 'cursor-grab ring-2 ring-blue-200' : ''">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <div :class="deviceIconClass(device)" class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                </div>
+                                <span class="text-sm font-medium text-gray-800 truncate" x-text="device.name"></span>
+                            </div>
+                        </div>
+                        <a :href="'/devices/' + device.ain" class="text-xs text-blue-500 hover:text-blue-700">Details &rarr;</a>
+                    </div>
+                </template>
+            </div>
+        </template>
     </div>
 
 </div>
@@ -105,6 +246,112 @@
 
 {% block scripts %}
 <script>
+function deviceGrid() {
+    return {
+        devices: [],
+        groups: [],
+        activeGroup: null,
+        editMode: false,
+        sortableInstances: [],
+
+        async init() {
+            await Promise.all([this.loadDevices(), this.loadGroups()]);
+        },
+
+        async loadDevices() {
+            try {
+                const r = await authFetch('/api/v1/devices');
+                if (r.ok) this.devices = await r.json();
+            } catch(e) {}
+        },
+
+        async loadGroups() {
+            try {
+                const r = await authFetch('/api/v1/groups');
+                if (r.ok) this.groups = await r.json();
+            } catch(e) {}
+        },
+
+        visibleGroups() {
+            if (this.activeGroup === null) return this.groups;
+            return this.groups.filter(g => g.id === this.activeGroup);
+        },
+
+        devicesInGroup(group) {
+            const memberIds = group.members.map(m => m.device_id);
+            return this.devices.filter(d => memberIds.includes(d.id))
+                .sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999));
+        },
+
+        devicesInGroupById(groupId) {
+            const group = this.groups.find(g => g.id === groupId);
+            if (!group) return [];
+            return this.devicesInGroup(group);
+        },
+
+        ungroupedDevices() {
+            const allMemberIds = this.groups.flatMap(g => g.members.map(m => m.device_id));
+            return this.devices.filter(d => !allMemberIds.includes(d.id))
+                .sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999));
+        },
+
+        toggleEditMode() {
+            this.editMode = !this.editMode;
+            this.sortableInstances.forEach(s => {
+                s.option('disabled', !this.editMode);
+            });
+            if (!this.editMode) {
+                this.saveOrder();
+            }
+        },
+
+        initSortable(el, groupId) {
+            if (typeof Sortable === 'undefined') return;
+            const instance = Sortable.create(el, {
+                animation: 150,
+                ghostClass: 'opacity-40',
+                chosenClass: 'shadow-lg',
+                disabled: !this.editMode,
+                onEnd: () => {
+                    // Order is saved when editMode is toggled off
+                },
+            });
+            this.sortableInstances.push(instance);
+        },
+
+        async saveOrder() {
+            // Collect new order from all sortable containers
+            const reorderItems = [];
+            let order = 0;
+            const allContainers = document.querySelectorAll('[id^="group-"], [id^="ungrouped"]');
+            allContainers.forEach(container => {
+                container.querySelectorAll('[data-id]').forEach(el => {
+                    reorderItems.push({ id: el.dataset.id, display_order: order++ });
+                });
+            });
+            if (reorderItems.length === 0) return;
+            try {
+                await authFetch('/api/v1/devices/reorder', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(reorderItems),
+                });
+                // Update local state
+                reorderItems.forEach(item => {
+                    const d = this.devices.find(d => d.id === item.id);
+                    if (d) d.display_order = item.display_order;
+                });
+            } catch(e) { console.warn('Reorder save failed:', e); }
+        },
+
+        deviceIconClass(device) {
+            if (device.device_type === 'thermostat') return 'bg-orange-100 text-orange-500';
+            if (device.device_type === 'light') return 'bg-yellow-100 text-yellow-500';
+            return 'bg-blue-100 text-blue-500';
+        },
+    };
+}
+
 function dashboardPage() {
     return {
         stats: {},

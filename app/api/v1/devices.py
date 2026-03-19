@@ -15,8 +15,10 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel as PydanticBaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.audit.service import emit_event
 from app.auth.rbac import Role, require_role
 from app.dependencies import get_db, get_provider
 from app.devices.schemas import (
@@ -87,6 +89,13 @@ async def turn_on(
     service: DeviceService = Depends(_get_service),
 ) -> None:
     await service.turn_on(ain)
+    emit_event(
+        "device_control",
+        actor_id=current_user.id,
+        resource_type="device",
+        resource_id=ain,
+        payload={"action": "on"},
+    )
 
 
 @router.post("/{ain}/off", status_code=204)
@@ -96,6 +105,13 @@ async def turn_off(
     service: DeviceService = Depends(_get_service),
 ) -> None:
     await service.turn_off(ain)
+    emit_event(
+        "device_control",
+        actor_id=current_user.id,
+        resource_type="device",
+        resource_id=ain,
+        payload={"action": "off"},
+    )
 
 
 @router.put("/{ain}/temperature", status_code=204)
@@ -106,6 +122,13 @@ async def set_temperature(
     service: DeviceService = Depends(_get_service),
 ) -> None:
     await service.set_temperature(ain, data.celsius)
+    emit_event(
+        "device_control",
+        actor_id=current_user.id,
+        resource_type="device",
+        resource_id=ain,
+        payload={"action": "set_temperature", "celsius": data.celsius},
+    )
 
 
 @router.put("/{ain}/brightness", status_code=204)
@@ -116,6 +139,13 @@ async def set_brightness(
     service: DeviceService = Depends(_get_service),
 ) -> None:
     await service.set_brightness(ain, data.level)
+    emit_event(
+        "device_control",
+        actor_id=current_user.id,
+        resource_type="device",
+        resource_id=ain,
+        payload={"action": "set_brightness", "level": data.level},
+    )
 
 
 @router.get("/{ain}/snapshots", response_model=list[DeviceSnapshotRead])
@@ -128,3 +158,19 @@ async def get_device_snapshots(
     """Get historical state snapshots for charts. Periods: 24h, 7d, 30d."""
     snapshots = await service.get_device_snapshots(ain, period)
     return list(snapshots)
+
+
+class ReorderItem(PydanticBaseModel):
+    id: uuid.UUID
+    display_order: int
+
+
+@router.patch("/reorder", status_code=204)
+async def reorder_devices(
+    items: list[ReorderItem],
+    current_user: User = Depends(require_role(Role.USER)),
+    service: DeviceService = Depends(_get_service),
+) -> None:
+    """Bulk-update display_order for devices after drag-and-drop reordering."""
+    for item in items:
+        await service.update_device(item.id, DeviceUpdate(display_order=item.display_order))

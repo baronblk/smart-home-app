@@ -28,7 +28,7 @@ class DeviceRepository:
         query = select(Device)
         if not include_inactive:
             query = query.where(Device.is_active == True)  # noqa: E712
-        query = query.order_by(Device.name).limit(limit)
+        query = query.order_by(Device.display_order.asc(), Device.name.asc()).limit(limit)
         result = await self._session.execute(query)
         return result.scalars().all()
 
