@@ -49,8 +49,7 @@ async def fetch_openmeteo_weather(lat: float, lon: float) -> dict[str, Any]:
         "latitude": lat,
         "longitude": lon,
         "current": (
-            "temperature_2m,relative_humidity_2m,"
-            "apparent_temperature,weather_code,wind_speed_10m"
+            "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m"
         ),
         "timezone": "auto",
     }
