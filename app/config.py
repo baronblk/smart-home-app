@@ -62,8 +62,9 @@ class Settings(BaseSettings):
     fritz_ssl_verify: bool = Field(default=False, alias="FRITZ_SSL_VERIFY")
 
     # ------------------------------------------------------------------
-    # OpenWeatherMap
+    # Weather
     # ------------------------------------------------------------------
+    weather_provider: str = Field(default="open-meteo", alias="WEATHER_PROVIDER")
     openweathermap_api_key: str = Field(default="", alias="OPENWEATHERMAP_API_KEY")
     weather_location_lat: float = Field(default=48.1351, alias="WEATHER_LOCATION_LAT")
     weather_location_lon: float = Field(default=11.5820, alias="WEATHER_LOCATION_LON")

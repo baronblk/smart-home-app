@@ -46,7 +46,8 @@ class WeatherService:
         return await self._fetch_and_cache()
 
     async def _fetch_and_cache(self) -> WeatherRead | None:
-        if not settings.openweathermap_api_key:
+        # Open-Meteo doesn't need an API key, only OWM does
+        if settings.weather_provider != "open-meteo" and not settings.openweathermap_api_key:
             logger.debug("No OpenWeatherMap API key configured — skipping weather fetch.")
             return None
 

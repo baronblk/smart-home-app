@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.weather.client import parse_weather_data
+from app.weather.client import parse_owm_data as parse_weather_data
 
 # ------------------------------------------------------------------
 # OWM response fixture
