@@ -88,10 +88,20 @@ class FritzProvider(BaseProvider):
                 fha.get_homeautomation_devices,
             )
             result = []
+            skipped = 0
             for device in devices_raw:
                 info = parse_device_info(device)
+                if info is None:
+                    # Virtual group / Schaltgruppe — not a physical device
+                    skipped += 1
+                    continue
                 self._device_capabilities[info.ain] = info.capabilities
                 result.append(info)
+            if skipped:
+                logger.info(
+                    "Discovery: skipped %d FRITZ!Box virtual group entries (Schaltgruppen)",
+                    skipped,
+                )
             return result
         except Exception as exc:
             raise map_fritz_error(exc) from exc

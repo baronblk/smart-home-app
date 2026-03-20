@@ -278,8 +278,10 @@ function deviceGrid() {
         },
 
         devicesInGroup(group) {
-            const memberIds = group.members.map(m => m.device_id);
-            return this.devices.filter(d => memberIds.includes(d.id))
+            // Use Set for O(1) lookup and strict-equality comparison
+            const memberSet = new Set((group.members || []).map(m => m.device_id));
+            return this.devices
+                .filter(d => memberSet.has(d.id))
                 .sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999));
         },
 
@@ -290,8 +292,14 @@ function deviceGrid() {
         },
 
         ungroupedDevices() {
-            const allMemberIds = this.groups.flatMap(g => g.members.map(m => m.device_id));
-            return this.devices.filter(d => !allMemberIds.includes(d.id))
+            // Build a Set of ALL device IDs that are in ANY group
+            // Using Set.has() instead of Array.includes() ensures strict equality
+            // and avoids O(n²) performance on large device lists.
+            const allMemberIds = new Set(
+                this.groups.flatMap(g => (g.members || []).map(m => m.device_id))
+            );
+            return this.devices
+                .filter(d => !allMemberIds.has(d.id))
                 .sort((a, b) => (a.display_order ?? 999) - (b.display_order ?? 999));
         },
 
