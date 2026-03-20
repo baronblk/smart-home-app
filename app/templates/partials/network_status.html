@@ -1,11 +1,18 @@
-<!-- DSL/WAN Status — full card body content -->
+<!-- WAN/Internet Status — full card body content -->
 <!-- Connection state badge row -->
 <div class="flex items-center justify-between mb-4">
-    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
-        {% if status.is_connected %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-600{% endif %}">
-        <span class="w-1.5 h-1.5 rounded-full {% if status.is_connected %}bg-green-500 animate-pulse{% else %}bg-red-500{% endif %}"></span>
-        {% if status.is_connected %}Verbunden{% else %}Getrennt{% endif %}
-    </span>
+    <div class="flex items-center gap-2">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+            {% if status.is_connected %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-600{% endif %}">
+            <span class="w-1.5 h-1.5 rounded-full {% if status.is_connected %}bg-green-500 animate-pulse{% else %}bg-red-500{% endif %}"></span>
+            {% if status.is_connected %}Verbunden{% else %}Getrennt{% endif %}
+        </span>
+        {% if status.connection_type and status.connection_type != 'WAN' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
+            {{ status.connection_type }}
+        </span>
+        {% endif %}
+    </div>
     <span class="text-xs text-gray-400">{{ status.model }}</span>
 </div>
 
@@ -37,12 +44,16 @@
         <dd class="font-mono text-xs text-gray-700 mt-0.5 truncate max-w-[180px]">{{ status.external_ipv6 }}</dd>
     </div>
     {% endif %}
+    {% if status.noise_margin_down and status.noise_margin_down != '–' %}
     <div class="flex justify-between">
         <dt class="text-gray-500">Rauschen ↓ / ↑</dt>
         <dd class="text-gray-700">{{ status.noise_margin_down }} / {{ status.noise_margin_up }}</dd>
     </div>
+    {% endif %}
+    {% if status.attenuation_down and status.attenuation_down != '–' %}
     <div class="flex justify-between">
         <dt class="text-gray-500">Dämpfung ↓ / ↑</dt>
         <dd class="text-gray-700">{{ status.attenuation_down }} / {{ status.attenuation_up }}</dd>
     </div>
+    {% endif %}
 </dl>

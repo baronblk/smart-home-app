@@ -3,6 +3,12 @@ NetworkService — wraps FritzStatus, FritzHosts, FritzWLAN for async use.
 
 In mock mode (FRITZ_MOCK_MODE=true) returns synthetic data so the UI
 works without real FRITZ!Box hardware.
+
+Fiber/Glasfaser note:
+  FritzStatus uses DSL-specific SOAP actions (WANDSLInterfaceConfig) that do
+  not exist on fiber (FTTH/FTTB) boxes and raise FritzActionError.  This
+  service handles that gracefully by fetching each attribute individually and
+  falling back to WANCommonInterfaceCfg for speed and link status.
 """
 
 from __future__ import annotations
@@ -19,6 +25,34 @@ NA = chr(0x2013)  # EN DASH placeholder for missing values
 logger = logging.getLogger(__name__)
 
 
+def _safe_attr(fs: object, name: str, default: Any = None) -> Any:
+    """Read an attribute from FritzStatus without crashing on DSL-only properties."""
+    try:
+        return getattr(fs, name)
+    except Exception:
+        return default
+
+
+def _addon_speeds(fc: object) -> tuple[int, int]:
+    """Return (down_bps, up_bps) from WANCommonInterfaceCfg:GetAddonInfos (fiber-safe)."""
+    try:
+        info = fc.call_action("WANCommonInterfaceCfg", "GetAddonInfos")  # type: ignore[attr-defined]
+        return (
+            int(info.get("NewLayer1DownstreamMaxBitRate", 0)),
+            int(info.get("NewLayer1UpstreamMaxBitRate", 0)),
+        )
+    except Exception:
+        return 0, 0
+
+
+def _wan_link_props(fc: object) -> dict[str, str]:
+    """Return WANCommonInterfaceCfg:GetCommonLinkProperties dict, empty on error."""
+    try:
+        return fc.call_action("WANCommonInterfaceCfg", "GetCommonLinkProperties")  # type: ignore[attr-defined]
+    except Exception:
+        return {}
+
+
 def _mock_dsl_status() -> dict[str, Any]:
     return {
         "is_connected": True,
@@ -31,11 +65,12 @@ def _mock_dsl_status() -> dict[str, Any]:
         "max_up_kbps": 40_000,
         "max_down_str": "250 Mbit/s",
         "max_up_str": "40 Mbit/s",
-        "noise_margin_down": "9.0 dB",
-        "noise_margin_up": "8.5 dB",
-        "attenuation_down": "18.0 dB",
-        "attenuation_up": "6.5 dB",
-        "model": "FRITZ!Box 7590 AX",
+        "noise_margin_down": NA,
+        "noise_margin_up": NA,
+        "attenuation_down": NA,
+        "attenuation_up": NA,
+        "model": "FRITZ!Box 5530 Fiber",
+        "connection_type": "Glasfaser",
     }
 
 
@@ -159,46 +194,87 @@ class NetworkService:
     """Async wrapper around FritzStatus, FritzHosts, FritzWLAN."""
 
     async def get_dsl_status(self) -> dict[str, Any]:
-        """Return DSL / WAN connection status."""
+        """Return WAN connection status — works for DSL and fiber (Glasfaser) boxes."""
         if settings.fritz_mock_mode:
             return _mock_dsl_status()
 
         loop = asyncio.get_event_loop()
-        try:
+
+        def _fetch() -> dict[str, Any]:
             from fritzconnection.lib.fritzstatus import FritzStatus
 
-            def _fetch() -> dict[str, Any]:
-                fs = FritzStatus(
-                    address=settings.fritz_host,
-                    user=settings.fritz_username,
-                    password=settings.fritz_password,
-                    use_tls=False,
-                )
-                max_down, max_up = fs.max_bit_rate or (0, 0)
-                uptime = fs.connection_uptime or 0
-                noise = fs.noise_margin or (None, None)
-                atten = fs.attenuation or (None, None)
-                return {
-                    "is_connected": bool(fs.is_connected),
-                    "is_linked": bool(fs.is_linked),
-                    "external_ip": fs.external_ip or NA,
-                    "external_ipv6": fs.external_ipv6 or NA,
-                    "uptime_str": _fmt_uptime(uptime),
-                    "uptime_seconds": uptime,
-                    "max_down_kbps": max_down // 1000,
-                    "max_up_kbps": max_up // 1000,
-                    "max_down_str": _fmt_kbps(max_down // 1000),
-                    "max_up_str": _fmt_kbps(max_up // 1000),
-                    "noise_margin_down": f"{noise[0]} dB" if noise[0] else NA,
-                    "noise_margin_up": f"{noise[1]} dB" if noise[1] else NA,
-                    "attenuation_down": f"{atten[0]} dB" if atten[0] else NA,
-                    "attenuation_up": f"{atten[1]} dB" if atten[1] else NA,
-                    "model": fs.modelname or "FRITZ!Box",
-                }
+            fs = FritzStatus(
+                address=settings.fritz_host,
+                user=settings.fritz_username,
+                password=settings.fritz_password,
+                use_tls=False,
+            )
+            fc = fs.fc  # underlying FritzConnection for direct SOAP calls
 
+            # --- Basic WAN attributes (work on DSL and fiber) ---
+            is_connected: bool = bool(_safe_attr(fs, "is_connected", False))
+            is_linked: bool = bool(_safe_attr(fs, "is_linked", False))
+            external_ip: str = _safe_attr(fs, "external_ip") or NA
+            external_ipv6: str = _safe_attr(fs, "external_ipv6") or NA
+            uptime: int = _safe_attr(fs, "connection_uptime") or 0
+            model: str = _safe_attr(fs, "modelname") or "FRITZ!Box"
+
+            # --- Fiber fallback: WANCommonInterfaceCfg is always available ---
+            link_props = _wan_link_props(fc)
+            phys_status = link_props.get("NewPhysicalLinkStatus", "")
+            access_type = link_props.get("NewWANAccessType", "WAN")
+            if phys_status:
+                is_linked = phys_status.lower() == "up"
+                # Fiber: physical link up means internet is reachable even when
+                # FritzStatus.is_connected returns False (DSL service absent)
+                if is_linked and not is_connected:
+                    is_connected = True
+
+            # Friendly connection type label for the UI
+            _at = access_type.lower()
+            if _at in ("dsl", "adsl", "vdsl"):
+                conn_type = "DSL"
+            elif _at == "ethernet":
+                conn_type = "Glasfaser / Kabel"
+            else:
+                conn_type = access_type or "WAN"
+
+            # --- Speed: try DSL-specific first; fall back to WANCommonInterfaceCfg ---
+            bit_rate = _safe_attr(fs, "max_bit_rate")
+            if bit_rate:
+                max_down, max_up = int(bit_rate[0]), int(bit_rate[1])
+            else:
+                max_down, max_up = 0, 0
+            if max_down == 0:
+                max_down, max_up = _addon_speeds(fc)
+
+            # --- DSL-only: noise / attenuation (silently NA on fiber) ---
+            noise: tuple[Any, Any] = _safe_attr(fs, "noise_margin") or (None, None)
+            atten: tuple[Any, Any] = _safe_attr(fs, "attenuation") or (None, None)
+
+            return {
+                "is_connected": is_connected,
+                "is_linked": is_linked,
+                "external_ip": external_ip,
+                "external_ipv6": external_ipv6,
+                "uptime_str": _fmt_uptime(uptime) if uptime else NA,
+                "uptime_seconds": uptime,
+                "max_down_kbps": max_down // 1000,
+                "max_up_kbps": max_up // 1000,
+                "max_down_str": _fmt_kbps(max_down // 1000) if max_down else NA,
+                "max_up_str": _fmt_kbps(max_up // 1000) if max_up else NA,
+                "noise_margin_down": f"{noise[0]} dB" if noise[0] else NA,
+                "noise_margin_up": f"{noise[1]} dB" if noise[1] else NA,
+                "attenuation_down": f"{atten[0]} dB" if atten[0] else NA,
+                "attenuation_up": f"{atten[1]} dB" if atten[1] else NA,
+                "model": model,
+                "connection_type": conn_type,
+            }
+
+        try:
             return await loop.run_in_executor(None, partial(_fetch))
         except Exception as exc:
-            logger.warning("FritzStatus failed: %s", exc)
+            logger.warning("NetworkService.get_dsl_status failed: %s", exc)
             return {
                 "is_connected": False,
                 "is_linked": False,
@@ -215,6 +291,7 @@ class NetworkService:
                 "attenuation_down": NA,
                 "attenuation_up": NA,
                 "model": "FRITZ!Box",
+                "connection_type": "WAN",
             }
 
     async def get_wlan_networks(self) -> list[dict[str, Any]]:
