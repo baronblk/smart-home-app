@@ -6,6 +6,18 @@
     </div>
 
     {% if state %}
+
+    {# Determine if any measurable field is available #}
+    {% set has_state = (
+        state.is_on is not none or
+        state.temperature_celsius is not none or
+        state.target_temperature is not none or
+        state.power_watts is not none or
+        state.energy_wh is not none or
+        state.brightness_level is not none
+    ) %}
+
+    {% if has_state %}
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
 
         <!-- Switch state -->
@@ -78,6 +90,20 @@
         {% endif %}
 
     </div>
+    {% else %}
+    <!-- Device is reachable but has no measurable values (e.g. ZigBee sensor, gateway) -->
+    <div class="flex items-center gap-3 py-2 text-sm text-gray-500">
+        <svg class="w-5 h-5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>
+            Dieses Gerät meldet keine messbaren Werte (kein Schalter, keine Temperatur, keine Leistung).
+            Es wird vom System erkannt und überwacht, liefert aber keine steuerbaren Zustände.
+        </span>
+    </div>
+    {% endif %}
+
     {% else %}
     <div class="text-sm text-gray-400 py-4 text-center">
         Gerätestatus konnte nicht abgerufen werden. Das Gerät ist möglicherweise offline.

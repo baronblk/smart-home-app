@@ -186,16 +186,28 @@ document.addEventListener("htmx:afterRequest", () => {
 
 // After every hx-boost navigation:
 //   1. Re-check auth (token may have expired during the session).
-//   2. Re-initialise Alpine on the swapped body content.
-//      Inline functions defined in {% block scripts %} (dashboardPage,
-//      deviceGrid, networkManager, etc.) are guaranteed to have run
-//      by the time htmx:afterSettle fires. Alpine.initTree() skips
-//      already-initialised elements (_x_dataStack present) and retries
-//      any that the MutationObserver attempted before those functions
-//      were available (the hx-boost swap/script race condition).
+//   2. Re-initialise Alpine on the swapped <main> content.
+//
+//   WHY destroyTree + initTree (not just initTree):
+//   When HTMX replaces the body innerHTML, Alpine's MutationObserver fires
+//   immediately — BEFORE HTMX re-executes the inline <script> tags from
+//   {% block scripts %} (e.g. schedulesPage, groupManager, dashboardPage).
+//   Alpine tries to init x-data="schedulesPage()" but the function is not
+//   yet defined, so it either throws silently or partially initialises the
+//   element (setting _x_dataStack). A subsequent plain initTree() call then
+//   SKIPS that element (already has _x_dataStack), leaving the component in
+//   a broken, data-empty state — which is exactly what the user sees.
+//   destroyTree() clears all Alpine state on <main> first; initTree() then
+//   does a clean initialisation — at this point HTMX has already executed
+//   all inline scripts, so every page function is defined and ready.
+//   The <html> x-data (sidebarOpen) and the sidebar are outside <main> and
+//   are therefore unaffected by destroyTree.
 document.addEventListener("htmx:afterSettle", () => {
     _checkAuth();
-    if (window.Alpine) {
-        Alpine.initTree(document.body);
+    if (!window.Alpine) return;
+    const main = document.querySelector("main");
+    if (main) {
+        Alpine.destroyTree(main);
+        Alpine.initTree(main);
     }
 });
