@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.cache import device_state_cache
 from app.devices.models import Device, DeviceStateSnapshot
 from app.devices.repository import DeviceRepository
 from app.devices.schemas import DeviceUpdate, DiscoveryResult
@@ -80,8 +81,12 @@ class DeviceService:
         return device
 
     async def get_live_state(self, ain: str) -> DeviceState:
-        """Fetch real-time state from the provider."""
-        return await self._provider.get_device_state(ain)
+        """Return device state — from cache (TTL 10 s) or live FRITZ!Box call."""
+        return await device_state_cache.get_or_fetch(
+            key=f"state:{ain}",
+            ttl=10.0,
+            fetch=lambda: self._provider.get_device_state(ain),
+        )
 
     async def update_device(self, device_id: uuid.UUID, data: DeviceUpdate) -> Device:
         device = await self.get_device(device_id)
@@ -99,20 +104,24 @@ class DeviceService:
 
     async def turn_on(self, ain: str) -> None:
         await self._provider.set_switch(ain, on=True)
+        device_state_cache.invalidate(f"state:{ain}")
 
     async def turn_off(self, ain: str) -> None:
         await self._provider.set_switch(ain, on=False)
+        device_state_cache.invalidate(f"state:{ain}")
 
     async def set_temperature(self, ain: str, celsius: float) -> None:
         await self._provider.set_temperature(ain, celsius)
+        device_state_cache.invalidate(f"state:{ain}")
 
     async def set_brightness(self, ain: str, level: int) -> None:
         await self._provider.set_dimmer(ain, level)
+        device_state_cache.invalidate(f"state:{ain}")
 
     async def get_device_snapshots(
         self, ain: str, period: str = "24h"
-    ) -> Sequence[DeviceStateSnapshot]:
-        """Get historical snapshots for chart rendering."""
+    ) -> list[DeviceStateSnapshot]:
+        """Get historical snapshots for chart rendering (downsampled to ≤250 points)."""
         period_map = {
             "24h": timedelta(hours=24),
             "7d": timedelta(days=7),
@@ -120,7 +129,8 @@ class DeviceService:
         }
         delta = period_map.get(period, timedelta(hours=24))
         since = datetime.now(UTC) - delta
-        return await self._repo.get_snapshots_for_chart(ain, since)
+        raw = list(await self._repo.get_snapshots_for_chart(ain, since))
+        return _downsample(raw)
 
     async def get_latest_snapshot(self, ain: str) -> DeviceStateSnapshot | None:
         """Get the most recent snapshot for a device."""
@@ -139,6 +149,7 @@ class DeviceService:
         for device in devices:
             try:
                 state = await self._provider.get_device_state(device.ain)
+                device_state_cache.set(f"state:{device.ain}", state, ttl=65.0)
                 snapshot = DeviceStateSnapshot(
                     device_id=device.id,
                     ain=device.ain,
@@ -157,6 +168,16 @@ class DeviceService:
                 pass
 
         return count
+
+
+def _downsample(
+    data: list[DeviceStateSnapshot], max_points: int = 250
+) -> list[DeviceStateSnapshot]:
+    """Reduce snapshot list to at most *max_points* evenly-spaced entries."""
+    if len(data) <= max_points:
+        return data
+    step = len(data) / max_points
+    return [data[int(i * step)] for i in range(max_points)]
 
 
 def _capabilities_to_list(capabilities: DeviceCapability) -> list[str]:

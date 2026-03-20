@@ -5,27 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}smart-home-app{% endblock %}</title>
 
-    <!-- Tailwind CSS (CDN - replace with compiled output in production) -->
+    <!-- Tailwind CSS (CDN – replace with compiled output via `make css` in production) -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- HTMX for partial page updates -->
-    <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+    <!-- HTMX — vendored for stable offline caching -->
+    <script src="/static/vendor/htmx.min.js" defer></script>
 
-    <!-- Alpine.js for lightweight client-side reactivity -->
-    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <!-- Alpine.js — pinned to 3.14.9, vendored -->
+    <script src="/static/vendor/alpine.min.js" defer></script>
 
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
+    <!-- Chart.js — loaded only when needed (vendored) -->
+    <script src="/static/vendor/chart.umd.min.js" defer></script>
 
-    <!-- SortableJS CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
+    <!-- SortableJS — vendored -->
+    <script src="/static/vendor/sortable.min.js" defer></script>
 
     <!-- Custom styles -->
     <link rel="stylesheet" href="/static/css/app.css" />
 
     {% block head %}{% endblock %}
 </head>
-<body class="bg-gray-100 text-gray-900 font-sans">
+<body class="bg-gray-100 text-gray-900 font-sans" hx-boost="true">
 
     <!-- Sidebar + Main layout -->
     <div class="flex h-screen overflow-hidden">
@@ -138,7 +138,7 @@
     </div>
 
     <!-- Custom JS -->
-    <script src="/static/js/app.js"></script>
+    <script src="/static/js/app.js" defer></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

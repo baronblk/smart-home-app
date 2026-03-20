@@ -18,6 +18,7 @@ import logging
 from functools import partial
 from typing import Any, cast
 
+from app.cache import network_cache
 from app.config import settings
 
 NA = chr(0x2013)  # EN DASH placeholder for missing values
@@ -195,10 +196,13 @@ class NetworkService:
     """Async wrapper around FritzStatus, FritzHosts, FritzWLAN."""
 
     async def get_dsl_status(self) -> dict[str, Any]:
-        """Return WAN connection status — works for DSL and fiber (Glasfaser) boxes."""
+        """Return WAN connection status — cached 15 s, fiber-safe."""
         if settings.fritz_mock_mode:
             return _mock_dsl_status()
+        return await network_cache.get_or_fetch(key="dsl", ttl=15.0, fetch=self._live_dsl_status)
 
+    async def _live_dsl_status(self) -> dict[str, Any]:
+        """Actual FRITZ!Box WAN status fetch (called on cache miss)."""
         loop = asyncio.get_event_loop()
 
         def _fetch() -> dict[str, Any]:
@@ -296,10 +300,15 @@ class NetworkService:
             }
 
     async def get_wlan_networks(self) -> list[dict[str, Any]]:
-        """Return list of WLAN networks (2.4 GHz, 5 GHz, guest)."""
+        """Return list of WLAN networks (2.4 GHz, 5 GHz, guest) — cached 60 s."""
         if settings.fritz_mock_mode:
             return _mock_wlan_networks()
+        return await network_cache.get_or_fetch(
+            key="wlan", ttl=60.0, fetch=self._live_wlan_networks
+        )
 
+    async def _live_wlan_networks(self) -> list[dict[str, Any]]:
+        """Actual FRITZ!Box WLAN fetch (called on cache miss)."""
         loop = asyncio.get_event_loop()
         networks: list[dict[str, Any]] = []
         try:
@@ -337,13 +346,20 @@ class NetworkService:
         return networks
 
     async def get_hosts(self, active_only: bool = False) -> list[dict[str, Any]]:
-        """Return list of known network hosts."""
+        """Return list of known network hosts — cached 30 s."""
         if settings.fritz_mock_mode:
             hosts = _mock_hosts()
             if active_only:
                 return [h for h in hosts if h["active"]]
             return hosts
+        return await network_cache.get_or_fetch(
+            key=f"hosts:{active_only}",
+            ttl=30.0,
+            fetch=lambda: self._live_hosts(active_only),
+        )
 
+    async def _live_hosts(self, active_only: bool = False) -> list[dict[str, Any]]:
+        """Actual FRITZ!Box hosts fetch (called on cache miss)."""
         loop = asyncio.get_event_loop()
         try:
             from fritzconnection.lib.fritzhosts import FritzHosts
