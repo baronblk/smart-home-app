@@ -5,6 +5,7 @@ Network API — DSL status, WLAN networks, connected hosts (JSON + HTMX partials
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
@@ -19,14 +20,14 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("/status")
-async def network_status() -> dict:
+async def network_status() -> dict[str, Any]:
     """Return DSL/WAN connection status as JSON."""
     svc = NetworkService()
     return await svc.get_dsl_status()
 
 
 @router.get("/wlan")
-async def network_wlan() -> list[dict]:
+async def network_wlan() -> list[dict[str, Any]]:
     """Return WLAN network list as JSON."""
     svc = NetworkService()
     return await svc.get_wlan_networks()
@@ -35,7 +36,7 @@ async def network_wlan() -> list[dict]:
 @router.get("/hosts")
 async def network_hosts(
     active_only: bool = Query(default=False),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Return host list as JSON."""
     svc = NetworkService()
     return await svc.get_hosts(active_only=active_only)

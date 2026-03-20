@@ -5,6 +5,7 @@ Phone API — call list data endpoints (JSON + HTMX partials).
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
@@ -30,7 +31,7 @@ async def phone_calls(
     calltype: int = Query(default=0, description="0=all 1=received 2=missed 3=out 10=rejected"),
     days: int = Query(default=30),
     num: int = Query(default=100),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Return call list as JSON."""
     svc = PhoneService()
     calls = await svc.get_calls(calltype=calltype, days=days, num=num)
