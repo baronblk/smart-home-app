@@ -21,13 +21,11 @@ logger = logging.getLogger(__name__)
 
 
 def is_fritz_group_ain(ain: str) -> bool:
-    """
-    Return True if the AIN belongs to a FRITZ!Box virtual group (Schaltgruppe),
-    NOT a physical FRITZ!DECT device.
+    """Return True for AINs that belong to FRITZ!Box virtual switch groups (Schaltgruppen).
 
-    Physical FRITZ!DECT devices have purely numeric AINs, e.g. "12345 678901".
-    FRITZ!Box virtual groups (Schaltgruppen, switch templates) have AINs that
-    start with "grp" or otherwise contain non-numeric characters.
+    Virtual groups have AINs prefixed with 'grp' (case-insensitive), e.g. 'grp97E48000'.
+    Physical devices — both native FRITZ!DECT (numeric) and third-party gateway devices
+    (hex/alphanumeric like 'Z28DBA7FFFE6000D0') — must NOT be filtered out.
 
     The FRITZ!Box AHA API (getdevicelistinfos) returns BOTH physical devices
     (<device> elements) and virtual groups (<group> elements) in the same list.
@@ -39,9 +37,7 @@ def is_fritz_group_ain(ain: str) -> bool:
     stripped = ain.strip()
     if not stripped:
         return True  # Empty AIN is invalid — skip it
-    # Physical FRITZ!DECT AINs are purely decimal digits (with optional space)
-    # Group/virtual AINs start with "grp" or other non-numeric patterns
-    return not stripped.replace(" ", "").isdigit()
+    return stripped.lower().startswith("grp")
 
 
 def parse_device_info(device: object) -> DeviceInfo | None:

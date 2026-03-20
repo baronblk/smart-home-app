@@ -9,9 +9,10 @@ Background:
   assigned group and once in the ungrouped section.
 
 What this migration does:
-  1. Deactivates (is_active = false) all Device rows whose AIN is NOT a
-     purely numeric FRITZ!DECT identifier — i.e. AINs that contain non-digit,
-     non-space characters (regex: NOT matching '^[0-9 ]+$').
+  1. Deactivates (is_active = false) all Device rows whose AIN starts with
+     "grp" (case-insensitive) — i.e. FRITZ!Box virtual switch groups only.
+     Native FRITZ!DECT devices (numeric AINs) and third-party gateway devices
+     (hex/alphanumeric AINs like "Z28DBA7FFFE6000D0") are NOT affected.
   2. Logs how many rows were affected.
   3. Does NOT delete rows — existing FK references in device_state_snapshots
      and (less likely) device_group_members are preserved.
@@ -40,7 +41,7 @@ def upgrade() -> None:
         text(
             """
             SELECT COUNT(*) FROM devices
-            WHERE ain !~ '^[0-9 ]+$'
+            WHERE lower(ain) LIKE 'grp%'
               AND is_active = true
             """
         )
@@ -52,7 +53,7 @@ def upgrade() -> None:
                 """
                 UPDATE devices
                 SET is_active = false
-                WHERE ain !~ '^[0-9 ]+$'
+                WHERE lower(ain) LIKE 'grp%'
                 """
             )
         )
@@ -70,7 +71,7 @@ def downgrade() -> None:
             """
             UPDATE devices
             SET is_active = true
-            WHERE ain !~ '^[0-9 ]+$'
+            WHERE lower(ain) LIKE 'grp%'
             """
         )
     )

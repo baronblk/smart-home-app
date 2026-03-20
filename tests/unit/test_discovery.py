@@ -3,8 +3,12 @@ Unit tests for fritz/discovery.py — specifically the virtual group filter.
 
 Root-cause context: FritzHomeAutomation.get_homeautomation_devices() returns
 BOTH physical FRITZ!DECT devices (numeric AINs) and FRITZ!Box virtual groups
-/ Schaltgruppen (non-numeric AINs starting with "grp"). The latter were being
-stored as real Device records, causing duplicate names in the UI.
+/ Schaltgruppen (AINs starting with "grp"). The latter were being stored as
+real Device records, causing duplicate names in the UI.
+
+Third-party devices connected via FRITZ!Smart Gateway use hex/alphanumeric
+AINs (e.g. "Z28DBA7FFFE6000D0") and must NOT be filtered out — only AINs
+starting with "grp" (case-insensitive) are virtual groups.
 
 These tests ensure the filter correctly separates physical devices from virtual
 groups across all known AIN formats.
@@ -29,10 +33,15 @@ from app.providers.fritz.discovery import is_fritz_group_ain, parse_device_info
         ("16572 0185715", False),
         ("123456789012", False),
         ("99999 999999", False),
-        # FRITZ!Box virtual group / Schaltgruppe AINs (non-numeric)
+        # Third-party / gateway devices (hex/alphanumeric) — NOT groups
+        ("Z28DBA7FFFE6000D0", False),  # IKEA TRETAKT Zigbee plug via FRITZ!Smart Gateway
+        ("Z28DBA7FFFE6000D1", False),  # another gateway device
+        ("AABBCCDDEEFF0011", False),  # generic hex AIN — NOT a group
+        # FRITZ!Box virtual group / Schaltgruppe AINs (start with "grp")
         ("grp97E48000", True),
         ("grp-1A2B3C4D", True),
         ("GRP12345678", True),  # uppercase variant
+        ("grpABCD1234", True),
         ("grp00000000", True),
         # Edge cases
         ("", True),  # empty → treat as invalid / skip
@@ -85,6 +94,16 @@ def test_parse_device_info_returns_physical_device() -> None:
     assert result is not None, "Physical device must NOT be filtered out"
     assert result.ain == "12345 678901"
     assert result.name == "Fenstersensor Wohnzimmer"
+    assert result.device_type == DeviceType.SWITCH  # is_switchable=True
+
+
+def test_parse_device_info_returns_gateway_device() -> None:
+    """parse_device_info returns DeviceInfo for a third-party gateway device with hex AIN."""
+    device = _FakeDevice(ain="Z28DBA7FFFE6000D0", name="SmartPlug Stehlampe")
+    result = parse_device_info(device)
+    assert result is not None, "Third-party gateway device must NOT be filtered out"
+    assert result.ain == "Z28DBA7FFFE6000D0"
+    assert result.name == "SmartPlug Stehlampe"
     assert result.device_type == DeviceType.SWITCH  # is_switchable=True
 
 
