@@ -1,5 +1,17 @@
 // ============================================================
 // smart-home-app — Global JS + Alpine.js components
+//
+// Load order (all scripts carry `defer`, executed in DOM order):
+//   1. htmx.min.js
+//   2. app.js          ← this file (runs BEFORE Alpine)
+//   3. alpine.min.js   ← fires alpine:init AFTER app.js has run
+//   4. chart.umd.min.js
+//   5. sortable.min.js
+//
+// Because app.js executes before alpine.min.js, the alpine:init
+// listener below is guaranteed to be registered before Alpine fires
+// it, and authFetch / getAccessToken are defined before any inline
+// Alpine component calls them.
 // ============================================================
 
 // ============================================================
@@ -30,8 +42,100 @@ async function authFetch(url, options = {}) {
 }
 
 // ============================================================
+// Alpine.js component registrations.
+// Wrapped in alpine:init so Alpine picks them up before it
+// processes the DOM. Because app.js now loads before alpine.min.js
+// (see defer order in base.html), this listener is always
+// registered in time.
+// ============================================================
+document.addEventListener("alpine:init", () => {
+
+    // --------------------------------------------------------
+    // Device toggle component
+    // --------------------------------------------------------
+    Alpine.data("deviceToggle", (ain, initialState) => ({
+        ain,
+        isOn: initialState,
+        loading: false,
+
+        async toggle() {
+            this.loading = true;
+            const action = this.isOn ? "off" : "on";
+            try {
+                const resp = await authFetch(`/api/v1/devices/${this.ain}/${action}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                });
+                if (resp.ok) {
+                    this.isOn = !this.isOn;
+                } else {
+                    console.error("Toggle failed:", resp.status);
+                }
+            } catch (err) {
+                console.error("Toggle error:", err);
+            } finally {
+                this.loading = false;
+            }
+        },
+    }));
+
+    // --------------------------------------------------------
+    // Modal component
+    // --------------------------------------------------------
+    Alpine.data("modal", () => ({
+        open: false,
+        show() { this.open = true; },
+        hide() { this.open = false; },
+    }));
+
+    // --------------------------------------------------------
+    // Temperature control component
+    // --------------------------------------------------------
+    Alpine.data("tempControl", (ain, currentTemp) => ({
+        ain,
+        temperature: currentTemp,
+        saving: false,
+
+        async setTemperature() {
+            this.saving = true;
+            try {
+                await authFetch(`/api/v1/devices/${this.ain}/temperature`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ celsius: this.temperature }),
+                });
+            } finally {
+                this.saving = false;
+            }
+        },
+    }));
+
+    // --------------------------------------------------------
+    // Brightness control component
+    // --------------------------------------------------------
+    Alpine.data("brightnessControl", (ain, currentLevel) => ({
+        ain,
+        level: currentLevel,
+        saving: false,
+
+        async setBrightness() {
+            this.saving = true;
+            try {
+                await authFetch(`/api/v1/devices/${this.ain}/brightness`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ level: this.level }),
+                });
+            } finally {
+                this.saving = false;
+            }
+        },
+    }));
+
+}); // end alpine:init
+
+// ============================================================
 // Auth gate — redirect to /login if no token is set.
-// Excluded pages: /login
 // ============================================================
 function _checkAuth() {
     const path = window.location.pathname;
@@ -41,7 +145,6 @@ function _checkAuth() {
     }
 }
 
-// Initial page load
 document.addEventListener("DOMContentLoaded", _checkAuth);
 
 // ============================================================
@@ -82,126 +185,17 @@ document.addEventListener("htmx:afterRequest", () => {
 });
 
 // After every hx-boost navigation:
-//  1. Re-check auth (token may have been removed)
-//  2. Re-initialise Alpine on the new body content.
-//     Inline functions defined in {% block scripts %} are guaranteed
-//     to be executed before htmx:afterSettle fires. Alpine.data()
-//     components are already in the registry. initTree() skips
-//     elements that Alpine already owns (_x_dataStack present) and
-//     retries any that failed during the initial swap (race between
-//     MutationObserver and inline script execution).
+//   1. Re-check auth (token may have expired during the session).
+//   2. Re-initialise Alpine on the swapped body content.
+//      Inline functions defined in {% block scripts %} (dashboardPage,
+//      deviceGrid, networkManager, etc.) are guaranteed to have run
+//      by the time htmx:afterSettle fires. Alpine.initTree() skips
+//      already-initialised elements (_x_dataStack present) and retries
+//      any that the MutationObserver attempted before those functions
+//      were available (the hx-boost swap/script race condition).
 document.addEventListener("htmx:afterSettle", () => {
     _checkAuth();
     if (window.Alpine) {
         Alpine.initTree(document.body);
     }
 });
-
-// ============================================================
-// Alpine.js components — registered directly (NOT inside an
-// alpine:init listener).
-//
-// Reason: both alpine.min.js and app.js carry the `defer`
-// attribute. Deferred scripts execute in DOM order, so Alpine
-// always runs before app.js. By the time app.js executes,
-// Alpine has already fired alpine:init and started processing
-// the DOM — any alpine:init listener registered here would
-// never be called.
-//
-// Calling Alpine.data() after Alpine.start() is fully supported
-// by Alpine 3.x: newly registered components are picked up by
-// Alpine's MutationObserver for all HTMX-swapped content.
-// The Alpine.initTree() call at the bottom of this file handles
-// the initial page load for elements that Alpine tried (and
-// failed) to initialise before these registrations existed.
-// ============================================================
-
-// ============================================================
-// Device toggle component
-// ============================================================
-Alpine.data("deviceToggle", (ain, initialState) => ({
-    ain,
-    isOn: initialState,
-    loading: false,
-
-    async toggle() {
-        this.loading = true;
-        const action = this.isOn ? "off" : "on";
-        try {
-            const resp = await authFetch(`/api/v1/devices/${this.ain}/${action}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-            });
-            if (resp.ok) {
-                this.isOn = !this.isOn;
-            } else {
-                console.error("Toggle failed:", resp.status);
-            }
-        } catch (err) {
-            console.error("Toggle error:", err);
-        } finally {
-            this.loading = false;
-        }
-    },
-}));
-
-// ============================================================
-// Modal component
-// ============================================================
-Alpine.data("modal", () => ({
-    open: false,
-    show() { this.open = true; },
-    hide() { this.open = false; },
-}));
-
-// ============================================================
-// Temperature control component
-// ============================================================
-Alpine.data("tempControl", (ain, currentTemp) => ({
-    ain,
-    temperature: currentTemp,
-    saving: false,
-
-    async setTemperature() {
-        this.saving = true;
-        try {
-            await authFetch(`/api/v1/devices/${this.ain}/temperature`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ celsius: this.temperature }),
-            });
-        } finally {
-            this.saving = false;
-        }
-    },
-}));
-
-// ============================================================
-// Brightness control component
-// ============================================================
-Alpine.data("brightnessControl", (ain, currentLevel) => ({
-    ain,
-    level: currentLevel,
-    saving: false,
-
-    async setBrightness() {
-        this.saving = true;
-        try {
-            await authFetch(`/api/v1/devices/${this.ain}/brightness`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ level: this.level }),
-            });
-        } finally {
-            this.saving = false;
-        }
-    },
-}));
-
-// ============================================================
-// Re-initialise any x-data elements that Alpine attempted to
-// process before these Alpine.data() registrations existed
-// (app.js runs after alpine.min.js due to defer ordering).
-// Already-initialised elements are skipped automatically.
-// ============================================================
-Alpine.initTree(document.body);

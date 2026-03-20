@@ -11,6 +11,12 @@
     <!-- HTMX — vendored for stable offline caching -->
     <script src="/static/vendor/htmx.min.js" defer></script>
 
+    <!-- app.js MUST come before alpine.min.js.
+         All defer scripts execute in DOM order. Placing app.js first
+         guarantees that authFetch, getAccessToken and the alpine:init
+         listener are registered before Alpine fires its init event. -->
+    <script src="/static/js/app.js" defer></script>
+
     <!-- Alpine.js — pinned to 3.14.9, vendored -->
     <script src="/static/vendor/alpine.min.js" defer></script>
 
@@ -137,8 +143,6 @@
         </div>
     </div>
 
-    <!-- Custom JS -->
-    <script src="/static/js/app.js" defer></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
