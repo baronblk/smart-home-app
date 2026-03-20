@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from functools import partial
-from typing import Any
+from typing import Any, cast
 
 from app.config import settings
 
@@ -45,10 +45,11 @@ def _addon_speeds(fc: object) -> tuple[int, int]:
         return 0, 0
 
 
-def _wan_link_props(fc: object) -> dict[str, str]:
+def _wan_link_props(fc: object) -> dict[str, Any]:
     """Return WANCommonInterfaceCfg:GetCommonLinkProperties dict, empty on error."""
     try:
-        return fc.call_action("WANCommonInterfaceCfg", "GetCommonLinkProperties")  # type: ignore[attr-defined]
+        result = fc.call_action("WANCommonInterfaceCfg", "GetCommonLinkProperties")  # type: ignore[attr-defined]
+        return cast(dict[str, Any], result)
     except Exception:
         return {}
 
