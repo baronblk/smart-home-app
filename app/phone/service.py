@@ -13,7 +13,14 @@ from datetime import datetime, timedelta
 from functools import partial
 from typing import Any
 
+from app.cache import phone_cache
 from app.config import settings
+
+# TTL for the raw call list.  FritzCall fetches take 2-4 s each; 120 s is a
+# safe balance between freshness and response speed.  Both /stats and
+# /partials/calls fire on page load and share the same cache key, so only
+# the first request touches the FRITZ!Box.
+_CALLS_TTL = 120.0
 
 NA = chr(0x2013)  # EN DASH placeholder for missing values
 
@@ -183,38 +190,56 @@ class PhoneService:
         num: int | None = 100,
     ) -> list[dict[str, Any]]:
         """
-        Fetch call list.
+        Fetch call list, cached for _CALLS_TTL seconds.
+
+        Strategy: always fetch the full list (calltype=0) from FRITZ!Box and
+        cache it under a single key.  Filtered views (calltype != 0) are
+        derived in-memory from the cached full list — no extra FRITZ!Box
+        connection needed.  Both /stats and /partials/calls fire on page load
+        and share the same cache entry, so only the first request is slow.
 
         calltype: 0=all, 1=received, 2=missed, 3=outgoing, 10=rejected
         Returns a list of plain dicts, sorted newest-first.
         """
+        effective_days = days or 30
+        cache_key = f"calls:all:{effective_days}"
+
         if settings.fritz_mock_mode:
-            calls = _mock_calls()
-            if calltype != 0:
-                calls = [c for c in calls if c["type"] == calltype]
-            return calls
+            all_calls: list[dict[str, Any]] = _mock_calls()
+        else:
+            loop = asyncio.get_event_loop()
 
-        loop = asyncio.get_event_loop()
-        try:
-            from fritzconnection.lib.fritzcall import FritzCall
+            async def _live_fetch() -> list[dict[str, Any]]:
+                try:
+                    from fritzconnection.lib.fritzcall import FritzCall
 
-            def _fetch() -> list[dict[str, Any]]:
-                fc = FritzCall(
-                    address=settings.fritz_host,
-                    user=settings.fritz_username,
-                    password=settings.fritz_password,
-                    use_tls=False,
-                )
-                raw = fc.get_calls(calltype=calltype, days=days, num=num)
-                return [_call_to_dict(c) for c in raw]
+                    def _sync_fetch() -> list[dict[str, Any]]:
+                        fc = FritzCall(
+                            address=settings.fritz_host,
+                            user=settings.fritz_username,
+                            password=settings.fritz_password,
+                            use_tls=False,
+                        )
+                        raw = fc.get_calls(calltype=0, days=effective_days, num=num or 100)
+                        return [_call_to_dict(c) for c in raw]
 
-            return await loop.run_in_executor(None, partial(_fetch))
-        except Exception as exc:
-            logger.warning("FritzCall failed, returning empty list: %s", exc)
-            return []
+                    return await loop.run_in_executor(None, partial(_sync_fetch))
+                except Exception as exc:
+                    logger.warning("FritzCall failed, returning empty list: %s", exc)
+                    return []
+
+            all_calls = await phone_cache.get_or_fetch(cache_key, _CALLS_TTL, _live_fetch)
+
+        if calltype != 0:
+            return [c for c in all_calls if c["type"] == calltype]
+        return all_calls
 
     async def get_stats(self) -> dict[str, int]:
-        """Return counts per call type for the badge display."""
+        """Return counts per call type for the badge display.
+
+        Shares the same cache entry as get_calls() — if /partials/calls
+        already populated the cache, this returns instantly.
+        """
         all_calls = await self.get_calls(calltype=0, days=30)
         return {
             "total": len(all_calls),

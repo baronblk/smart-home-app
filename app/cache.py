@@ -104,3 +104,8 @@ device_state_cache: TTLCache = TTLCache(name="device_state")
 
 #: Network data cache. Keys: "dsl" (15 s), "hosts" (30 s), "wlan" (60 s)
 network_cache: TTLCache = TTLCache(name="network")
+
+#: Phone call list cache. Key = "calls:{calltype}:{days}", TTL = 120 s.
+#: FritzCall fetches are expensive (2-4 s each). Both /stats and /partials/calls
+#: fire on page load; caching ensures the second request is instant.
+phone_cache: TTLCache = TTLCache(name="phone")
