@@ -6,7 +6,7 @@ POST /api/v1/auth/refresh — issue new access token via refresh cookie
 POST /api/v1/auth/logout  — clear refresh token cookie
 """
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Cookie, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.jwt import (
@@ -59,7 +59,9 @@ async def login(
 async def refresh(
     response: Response,
     session: AsyncSession = Depends(get_db),
-    refresh_token: str | None = None,
+    # The refresh token is stored as an httponly cookie; FastAPI's Cookie()
+    # dependency reads it from the Cookie header automatically.
+    refresh_token: str | None = Cookie(default=None, alias=REFRESH_COOKIE_NAME),
 ) -> RefreshResponse:
     """Issue a new access token using the refresh token cookie."""
 

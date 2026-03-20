@@ -15,15 +15,78 @@
 // ============================================================
 
 // ============================================================
-// Auth helper — retrieves the access token from localStorage.
+// Auth helpers
 // ============================================================
 function getAccessToken() {
     return localStorage.getItem("access_token") || "";
 }
 
 /**
- * Authenticated fetch wrapper — automatically adds Authorization header
- * and redirects to /login on 401.
+ * Decode the `exp` claim from a JWT without a library.
+ * Returns the expiry as a Unix timestamp in milliseconds, or null.
+ */
+function _getTokenExpiry(token) {
+    try {
+        const b64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+        const payload = JSON.parse(atob(b64));
+        return payload.exp ? payload.exp * 1000 : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Try to obtain a fresh access token using the httponly refresh cookie.
+ * Returns true on success, false if the session has expired.
+ */
+async function _tryRefreshToken() {
+    try {
+        const resp = await fetch("/api/v1/auth/refresh", {
+            method: "POST",
+            credentials: "include",   // send the httponly refresh cookie
+        });
+        if (resp.ok) {
+            const data = await resp.json();
+            localStorage.setItem("access_token", data.access_token);
+            _scheduleProactiveRefresh();
+            return true;
+        }
+    } catch {
+        // Network error — don't log out immediately
+    }
+    return false;
+}
+
+/**
+ * Schedule a proactive token refresh 90 seconds before the access token
+ * expires so the user is never logged out during an active session.
+ */
+function _scheduleProactiveRefresh() {
+    clearTimeout(window._tokenRefreshTimer);
+    const token = getAccessToken();
+    if (!token) return;
+    const exp = _getTokenExpiry(token);
+    if (!exp) return;
+    const msUntilExpiry = exp - Date.now();
+    // Refresh 90 s before expiry; at minimum 10 s from now
+    const delay = Math.max(msUntilExpiry - 90_000, 10_000);
+    window._tokenRefreshTimer = setTimeout(async () => {
+        const ok = await _tryRefreshToken();
+        if (!ok) {
+            // Refresh token also expired — redirect at the next authFetch
+            // rather than interrupting whatever the user is doing right now.
+            console.warn("[auth] Proactive refresh failed — session may have expired.");
+        }
+    }, delay);
+}
+
+/**
+ * Authenticated fetch wrapper.
+ *
+ * On 401:
+ *   1. Attempt a silent token refresh via the httponly refresh cookie.
+ *   2. If refresh succeeds, retry the original request once.
+ *   3. If refresh also fails, clear the access token and redirect to /login.
  */
 async function authFetch(url, options = {}) {
     const token = getAccessToken();
@@ -33,7 +96,16 @@ async function authFetch(url, options = {}) {
     };
     const resp = await fetch(url, { ...options, headers });
     if (resp.status === 401) {
-        // Token expired or invalid — redirect to login
+        const refreshed = await _tryRefreshToken();
+        if (refreshed) {
+            // Retry the original request with the new token
+            const newToken = getAccessToken();
+            return fetch(url, {
+                ...options,
+                headers: { ...options.headers, "Authorization": `Bearer ${newToken}` },
+            });
+        }
+        // Both access and refresh tokens are expired/invalid — force re-login
         localStorage.removeItem("access_token");
         window.location.href = "/login?next=" + encodeURIComponent(window.location.pathname);
         return resp;
@@ -145,7 +217,11 @@ function _checkAuth() {
     }
 }
 
-document.addEventListener("DOMContentLoaded", _checkAuth);
+document.addEventListener("DOMContentLoaded", () => {
+    _checkAuth();
+    // Start the proactive refresh cycle so the session never expires silently
+    _scheduleProactiveRefresh();
+});
 
 // ============================================================
 // HTMX global event listeners — attached to document so they

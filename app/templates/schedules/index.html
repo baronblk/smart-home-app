@@ -157,6 +157,135 @@
         </div>
     </div>
 
+    <!-- Edit Schedule Modal -->
+    <div x-show="showEditScheduleModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showEditScheduleModal = false">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Zeitplan bearbeiten</h3>
+            <form @submit.prevent="saveSchedule()">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" x-model="editScheduleForm.name" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <template x-if="editScheduleForm.trigger_type === 'cron'">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Uhrzeit</label>
+                            <input type="time" x-model="editScheduleForm.triggerTime"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                    </template>
+                    <template x-if="editScheduleForm.trigger_type === 'interval'">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Intervall (Minuten)</label>
+                            <input type="number" x-model.number="editScheduleForm.intervalMinutes" min="1" max="1440"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                    </template>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Gerät</label>
+                            <select x-model="editScheduleForm.deviceId"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Gerät wählen...</option>
+                                <template x-for="d in devices" :key="d.id">
+                                    <option :value="d.ain" x-text="d.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Aktion</label>
+                            <select x-model="editScheduleForm.deviceAction"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="turn_on">Einschalten</option>
+                                <option value="turn_off">Ausschalten</option>
+                                <option value="toggle">Umschalten</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" @click="showEditScheduleModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
+                    <button type="submit" :disabled="saving" class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400">
+                        <span x-text="saving ? 'Speichere...' : 'Speichern'"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Rule Modal -->
+    <div x-show="showEditRuleModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="showEditRuleModal = false">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Regel bearbeiten</h3>
+            <form @submit.prevent="saveRule()">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" x-model="editRuleForm.name" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <template x-if="editRuleForm.trigger_type === 'time'">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Uhrzeit</label>
+                            <input type="time" x-model="editRuleForm.triggerTime"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                    </template>
+                    <template x-if="editRuleForm.trigger_type === 'device_state'">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Trigger-Gerät</label>
+                                <select x-model="editRuleForm.triggerDeviceId"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Gerät wählen...</option>
+                                    <template x-for="d in devices" :key="d.id">
+                                        <option :value="d.ain" x-text="d.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <select x-model="editRuleForm.triggerState"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="on">Eingeschaltet</option>
+                                    <option value="off">Ausgeschaltet</option>
+                                </select>
+                            </div>
+                        </div>
+                    </template>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Aktions-Gerät</label>
+                            <select x-model="editRuleForm.deviceId"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Gerät wählen...</option>
+                                <template x-for="d in devices" :key="d.id">
+                                    <option :value="d.ain" x-text="d.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Aktion</label>
+                            <select x-model="editRuleForm.deviceAction"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="turn_on">Einschalten</option>
+                                <option value="turn_off">Ausschalten</option>
+                                <option value="toggle">Umschalten</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" @click="showEditRuleModal = false" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Abbrechen</button>
+                    <button type="submit" :disabled="saving" class="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-purple-400">
+                        <span x-text="saving ? 'Speichere...' : 'Speichern'"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Schedules section -->
     <div class="mb-8">
         <div class="flex items-center justify-between mb-4">
@@ -190,7 +319,12 @@
                                 class="text-xs px-2 py-1 rounded-lg font-medium"
                                 x-text="schedule.is_enabled ? 'Aktiv' : 'Inaktiv'">
                         </button>
-                        <button @click="deleteSchedule(schedule.id)" class="text-gray-400 hover:text-red-500">
+                        <button @click="startEditSchedule(schedule)" class="text-gray-400 hover:text-blue-500" title="Bearbeiten">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                        <button @click="deleteSchedule(schedule.id)" class="text-gray-400 hover:text-red-500" title="Löschen">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
@@ -244,7 +378,12 @@
                                 class="text-xs px-2 py-1 rounded-lg font-medium"
                                 x-text="rule.is_enabled ? 'Aktiv' : 'Inaktiv'">
                         </button>
-                        <button @click="deleteRule(rule.id)" class="text-gray-400 hover:text-red-500">
+                        <button @click="startEditRule(rule)" class="text-gray-400 hover:text-purple-500" title="Bearbeiten">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                        <button @click="deleteRule(rule.id)" class="text-gray-400 hover:text-red-500" title="Löschen">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
@@ -275,6 +414,12 @@ function schedulesPage() {
         saving: false,
         showScheduleModal: false,
         showRuleModal: false,
+        showEditScheduleModal: false,
+        showEditRuleModal: false,
+        editingScheduleId: null,
+        editingRuleId: null,
+        editScheduleForm: { name: '', trigger_type: 'cron', triggerTime: '07:00', intervalMinutes: 30, deviceId: '', deviceAction: 'turn_on' },
+        editRuleForm: { name: '', trigger_type: 'time', triggerTime: '20:00', triggerDeviceId: '', triggerState: 'on', deviceId: '', deviceAction: 'turn_on' },
 
         newSchedule: {
             name: '',
@@ -420,6 +565,101 @@ function schedulesPage() {
             if (!confirm('Regel wirklich loeschen?')) return;
             await authFetch(`/api/v1/automations/${id}`, { method: 'DELETE' });
             await this.loadRules();
+        },
+
+        startEditSchedule(schedule) {
+            this.editingScheduleId = schedule.id;
+            const cfg = schedule.trigger_config || {};
+            const h = String(cfg.hour ?? 7).padStart(2, '0');
+            const m = String(cfg.minute ?? 0).padStart(2, '0');
+            this.editScheduleForm = {
+                name: schedule.name,
+                trigger_type: schedule.trigger_type,
+                triggerTime: `${h}:${m}`,
+                intervalMinutes: cfg.minutes || 30,
+                deviceId: (schedule.action_config || {}).ain || '',
+                deviceAction: (schedule.action_config || {}).action || 'turn_on',
+            };
+            this.showEditScheduleModal = true;
+        },
+
+        async saveSchedule() {
+            this.saving = true;
+            try {
+                const s = this.editScheduleForm;
+                let triggerConfig = {};
+                if (s.trigger_type === 'cron') {
+                    const [hour, minute] = (s.triggerTime || '07:00').split(':');
+                    triggerConfig = { hour: parseInt(hour), minute: parseInt(minute) };
+                } else {
+                    triggerConfig = { minutes: s.intervalMinutes || 30 };
+                }
+                const payload = {
+                    name: s.name,
+                    trigger_config: triggerConfig,
+                    action_config: { ain: s.deviceId, action: s.deviceAction },
+                };
+                const r = await authFetch(`/api/v1/schedules/${this.editingScheduleId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                if (r.ok) {
+                    await this.loadSchedules();
+                    this.showEditScheduleModal = false;
+                } else {
+                    const err = await r.json().catch(() => ({}));
+                    alert('Fehler: ' + (err.detail || r.status));
+                }
+            } finally { this.saving = false; }
+        },
+
+        startEditRule(rule) {
+            this.editingRuleId = rule.id;
+            const cfg = rule.trigger_config || {};
+            const h = String(cfg.hour ?? 20).padStart(2, '0');
+            const m = String(cfg.minute ?? 0).padStart(2, '0');
+            this.editRuleForm = {
+                name: rule.name,
+                trigger_type: rule.trigger_type,
+                triggerTime: `${h}:${m}`,
+                triggerDeviceId: cfg.ain || '',
+                triggerState: cfg.state || 'on',
+                deviceId: (rule.action_config || {}).ain || '',
+                deviceAction: (rule.action_config || {}).action || 'turn_on',
+            };
+            this.showEditRuleModal = true;
+        },
+
+        async saveRule() {
+            this.saving = true;
+            try {
+                const rule = this.editRuleForm;
+                let triggerConfig = {};
+                if (rule.trigger_type === 'time') {
+                    const [hour, minute] = (rule.triggerTime || '20:00').split(':');
+                    triggerConfig = { hour: parseInt(hour), minute: parseInt(minute) };
+                } else if (rule.trigger_type === 'device_state') {
+                    triggerConfig = { ain: rule.triggerDeviceId, state: rule.triggerState };
+                }
+                const payload = {
+                    name: rule.name,
+                    trigger_config: triggerConfig,
+                    action_config: { ain: rule.deviceId, action: rule.deviceAction },
+                };
+                const r = await authFetch(`/api/v1/automations/${this.editingRuleId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                if (r.ok) {
+                    await this.loadRules();
+                    this.showEditRuleModal = false;
+                } else {
+                    const err = await r.json().catch(() => ({}));
+                    alert('Fehler: ' + (err.detail || r.status));
+                }
+            } finally { this.saving = false; }
         },
 
         formatTrigger(schedule) {
