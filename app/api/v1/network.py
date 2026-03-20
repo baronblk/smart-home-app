@@ -4,6 +4,7 @@ Network API — DSL status, WLAN networks, connected hosts (JSON + HTMX partials
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -60,8 +61,13 @@ async def partials_hosts(
 ) -> HTMLResponse:
     """HTMX partial — host table rows."""
     svc = NetworkService()
-    hosts = await svc.get_hosts(active_only=active_only)
-    wlan = await svc.get_wlan_networks()
+    # Fetch hosts and WLAN concurrently — both are cached independently,
+    # so on a cache hit both return in <5 ms; on a miss the two slow
+    # FRITZ!Box calls run in parallel instead of sequentially.
+    hosts, wlan = await asyncio.gather(
+        svc.get_hosts(active_only=active_only),
+        svc.get_wlan_networks(),
+    )
     total_wlan_clients = sum(n.get("client_count", 0) for n in wlan)
     return templates.TemplateResponse(
         "partials/host_rows.html",
