@@ -128,11 +128,23 @@ function phoneManager() {
             }
         },
 
-        refresh() {
+        async refresh() {
             this.loading = true;
-            this.loadStats();
-            htmx.trigger(document.body, 'callListRefresh');
-            setTimeout(() => { this.loading = false; }, 1000);
+            try {
+                // force=true invalidates the phone cache so we always get
+                // fresh data from the FRITZ!Box when the user clicks Aktualisieren
+                const r = await authFetch('/api/v1/phone/stats?force=true');
+                if (r.ok) this.stats = await r.json();
+                // Trigger HTMX reload with force flag
+                const tbody = document.getElementById('call-rows');
+                if (tbody) {
+                    const vals = JSON.stringify({ calltype: this.activeType, force: true });
+                    tbody.setAttribute('hx-vals', vals);
+                    htmx.trigger(tbody, 'callListRefresh');
+                }
+            } finally {
+                this.loading = false;
+            }
         },
     };
 }

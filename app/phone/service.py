@@ -188,6 +188,7 @@ class PhoneService:
         calltype: int = 0,
         days: int | None = 30,
         num: int | None = 100,
+        force_refresh: bool = False,
     ) -> list[dict[str, Any]]:
         """
         Fetch call list, cached for _CALLS_TTL seconds.
@@ -198,11 +199,16 @@ class PhoneService:
         connection needed.  Both /stats and /partials/calls fire on page load
         and share the same cache entry, so only the first request is slow.
 
+        force_refresh=True bypasses the cache (used by the Aktualisieren button)
+        so the user always gets fresh data on demand.
+
         calltype: 0=all, 1=received, 2=missed, 3=outgoing, 10=rejected
         Returns a list of plain dicts, sorted newest-first.
         """
         effective_days = days or 30
         cache_key = f"calls:all:{effective_days}"
+        if force_refresh:
+            phone_cache.invalidate(cache_key)
 
         if settings.fritz_mock_mode:
             all_calls: list[dict[str, Any]] = _mock_calls()
@@ -234,13 +240,14 @@ class PhoneService:
             return [c for c in all_calls if c["type"] == calltype]
         return all_calls
 
-    async def get_stats(self) -> dict[str, int]:
+    async def get_stats(self, force_refresh: bool = False) -> dict[str, int]:
         """Return counts per call type for the badge display.
 
         Shares the same cache entry as get_calls() — if /partials/calls
         already populated the cache, this returns instantly.
+        force_refresh=True invalidates the cache (used by the Aktualisieren button).
         """
-        all_calls = await self.get_calls(calltype=0, days=30)
+        all_calls = await self.get_calls(calltype=0, days=30, force_refresh=force_refresh)
         return {
             "total": len(all_calls),
             "received": sum(1 for c in all_calls if c["type"] == CALL_RECEIVED),
