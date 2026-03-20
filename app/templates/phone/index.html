@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Telefon – SmartHome{% endblock %}
+
+{% block content %}
+<div class="p-6 space-y-6" x-data="phoneManager()" x-init="init()">
+
+    <!-- Page Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">Telefon</h1>
+            <p class="text-sm text-gray-500 mt-1">Anrufliste der letzten 30 Tage</p>
+        </div>
+        <button @click="refresh()" class="btn-secondary flex items-center gap-2">
+            <svg class="w-4 h-4" :class="{'animate-spin': loading}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Aktualisieren
+        </button>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <p class="text-xs text-gray-500 uppercase tracking-wide">Gesamt</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1" x-text="stats.total ?? '–'"></p>
+        </div>
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-green-100">
+            <p class="text-xs text-green-600 uppercase tracking-wide">Eingehend</p>
+            <p class="text-2xl font-bold text-green-700 mt-1" x-text="stats.received ?? '–'"></p>
+        </div>
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-red-100">
+            <p class="text-xs text-red-500 uppercase tracking-wide">Verpasst</p>
+            <p class="text-2xl font-bold text-red-600 mt-1" x-text="stats.missed ?? '–'"></p>
+        </div>
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-blue-100">
+            <p class="text-xs text-blue-500 uppercase tracking-wide">Ausgehend</p>
+            <p class="text-2xl font-bold text-blue-600 mt-1" x-text="stats.outgoing ?? '–'"></p>
+        </div>
+    </div>
+
+    <!-- Filter Tabs + Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+
+        <!-- Tabs -->
+        <div class="border-b border-gray-100 px-4 flex gap-1 overflow-x-auto">
+            <template x-for="tab in tabs" :key="tab.type">
+                <button
+                    @click="setFilter(tab.type)"
+                    :class="activeType === tab.type
+                        ? 'border-b-2 border-blue-500 text-blue-600 font-medium'
+                        : 'text-gray-500 hover:text-gray-700'"
+                    class="px-4 py-3 text-sm whitespace-nowrap transition-colors"
+                    x-text="tab.label"
+                ></button>
+            </template>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-8"></th>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name / Nummer</th>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Gerät</th>
+                        <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Datum</th>
+                        <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Dauer</th>
+                    </tr>
+                </thead>
+                <tbody
+                    id="call-rows"
+                    hx-get="/api/v1/phone/partials/calls"
+                    hx-trigger="load, callListRefresh from:body"
+                    hx-indicator="#call-spinner"
+                    :hx-vals="JSON.stringify({calltype: activeType})"
+                >
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-gray-400">Lade Anrufliste…</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="call-spinner" class="htmx-indicator px-4 py-2 text-sm text-gray-500 text-center border-t border-gray-100">
+            Lade…
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function phoneManager() {
+    return {
+        loading: false,
+        activeType: 0,
+        stats: {},
+        tabs: [
+            { type: 0, label: 'Alle' },
+            { type: 1, label: '✓ Eingehend' },
+            { type: 2, label: '✗ Verpasst' },
+            { type: 3, label: '↗ Ausgehend' },
+            { type: 10, label: '⊘ Abgewiesen' },
+        ],
+
+        async init() {
+            await this.loadStats();
+        },
+
+        async loadStats() {
+            try {
+                const data = await authFetch('/api/v1/phone/stats');
+                this.stats = await data.json();
+            } catch (e) {
+                console.warn('Could not load phone stats', e);
+            }
+        },
+
+        setFilter(type) {
+            this.activeType = type;
+            // Update HTMX params and retrigger
+            const tbody = document.getElementById('call-rows');
+            if (tbody) {
+                tbody.setAttribute('hx-vals', JSON.stringify({ calltype: type }));
+                htmx.trigger(tbody, 'callListRefresh');
+            }
+        },
+
+        refresh() {
+            this.loading = true;
+            this.loadStats();
+            htmx.trigger(document.body, 'callListRefresh');
+            setTimeout(() => { this.loading = false; }, 1000);
+        },
+    };
+}
+</script>
+{% endblock %}

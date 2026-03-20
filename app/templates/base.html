@@ -67,6 +67,17 @@
                 <a href="/audit" class="nav-link {% if '/audit' in request.url.path %}nav-link-active{% endif %}">
                     Protokoll
                 </a>
+
+                <!-- Separator -->
+                <div class="pt-2 pb-1">
+                    <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">FRITZ!Box</p>
+                </div>
+                <a href="/phone" class="nav-link {% if '/phone' in request.url.path %}nav-link-active{% endif %}">
+                    Telefon
+                </a>
+                <a href="/network" class="nav-link {% if '/network' in request.url.path %}nav-link-active{% endif %}">
+                    Netzwerk
+                </a>
             </nav>
 
             <!-- Admin & User links -->

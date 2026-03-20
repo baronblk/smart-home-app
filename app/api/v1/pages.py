@@ -109,6 +109,16 @@ async def profile_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("auth/profile.html", {"request": request})
 
 
+@router.get("/phone", response_class=HTMLResponse)
+async def phone_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("phone/index.html", {"request": request})
+
+
+@router.get("/network", response_class=HTMLResponse)
+async def network_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse("network/index.html", {"request": request})
+
+
 @router.get("/settings", response_class=HTMLResponse)
 async def settings_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("settings/index.html", {"request": request})

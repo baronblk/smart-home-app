@@ -11,6 +11,8 @@ from app.api.v1.automations import router as automations_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.devices import router as devices_router
 from app.api.v1.groups import router as groups_router
+from app.api.v1.network import router as network_router
+from app.api.v1.phone import router as phone_router
 from app.api.v1.schedules import router as schedules_router
 from app.api.v1.settings import router as settings_router
 from app.api.v1.users import router as users_router
@@ -28,3 +30,5 @@ router.include_router(audit_router, prefix="/audit", tags=["audit"])
 router.include_router(settings_router, prefix="/settings", tags=["settings"])
 router.include_router(weather_router, prefix="/weather", tags=["weather"])
 router.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
+router.include_router(phone_router, prefix="/phone", tags=["phone"])
+router.include_router(network_router, prefix="/network", tags=["network"])
